@@ -124,7 +124,7 @@ function router(view, param = null) {
     else if (view === 'detalle') renderDetalleApartado(param);
 }
 
-// --- VISTA 1: HOME (FICHAS) ---
+// --- VISTA 1: HOME (FICHAS COMPLETAS) ---
 function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
@@ -139,6 +139,7 @@ function renderHome() {
         
         let cardHtml = `<div class="ficha-numero">Supuesto ${sup.id}</div>`;
 
+        // Mapeo dinámico para capturar todos los datos de la ficha
         const campos = [
             { label: "Área y Curso", keys: ["Área y Curso", "Área"] },
             { label: "Contexto", keys: ["Contexto"] },
@@ -155,6 +156,7 @@ function renderHome() {
                 if (sup[k]) { valor = sup[k]; break; }
             }
             if (valor) {
+                // Respetamos saltos de línea (ej. lista de barreras)
                 valor = valor.replace(/\n/g, '<br>');
                 cardHtml += `
                     <div class="ficha-dato" style="margin-bottom: 0.8rem;">
@@ -184,11 +186,12 @@ function renderIndice() {
     });
 }
 
-// --- VISTA 3: RESOLUCIÓN (Un supuesto entero) ---
+// --- VISTA 3: RESOLUCIÓN (INCLUYE PUNTOS PRINCIPALES) ---
 function renderResolucion(supuestoId) {
     document.getElementById('view-resolucion').classList.remove('hidden');
     const sup = AppState.supuestos[supuestoId];
     
+    // Cabecera
     let headerHtml = `<h2>Resolución del Supuesto ${supuestoId}</h2>`;
     const area = sup['Área y Curso'] || sup['Área'] || '';
     const contexto = sup['Contexto'] || '';
@@ -200,21 +203,17 @@ function renderResolucion(supuestoId) {
     const contentDiv = document.getElementById('resolucion-content');
     contentDiv.innerHTML = '';
 
-    let currentMainPoint = ""; 
+    let currentMainPoint = ""; // Para rastrear los puntos de la Columna A (1, 2, 3...)
 
     AppState.indiceMenu.forEach(itemIndice => {
         const tituloBloque = itemIndice.titulo;
         
         const bloquesEncontrados = AppState.contenidos.filter(row => {
-            if (row.length < 3) return false; 
-            const mainPunto = row[0] ? row[0].trim() : '';
+            if (row.length < 5) return false;
             const subPunto = row[1] ? row[1].trim() : '';
             const supuestosStr = row[2] ? row[2].toString().trim() : '';
             
-            // EL FIX: Si la columna B (subPunto) está vacía, usamos la Columna A (mainPunto)
-            const nombreDelBloque = subPunto !== '' ? subPunto : mainPunto;
-            
-            if (nombreDelBloque === tituloBloque) {
+            if (subPunto === tituloBloque) {
                 const idsArray = supuestosStr.split(',').map(s => s.trim());
                 return idsArray.includes(supuestoId.toString()) || idsArray.includes("Todos") || supuestosStr === "";
             }
@@ -224,15 +223,17 @@ function renderResolucion(supuestoId) {
         if (bloquesEncontrados.length > 0) {
             let htmlBloque = "";
 
+            // INYECCIÓN DEL TÍTULO PRINCIPAL (Columna A)
             const mainPoint = bloquesEncontrados[0][0] ? bloquesEncontrados[0][0].trim() : "";
             if (mainPoint && mainPoint !== currentMainPoint) {
                 htmlBloque += `
                     <h2 style="color: var(--primary-color); border-bottom: 3px solid var(--accent-color); padding-bottom: 0.5rem; margin-top: 3rem; margin-bottom: 1.5rem; font-size: 2rem;">
                         ${mainPoint}
                     </h2>`;
-                currentMainPoint = mainPoint; 
+                currentMainPoint = mainPoint; // Actualizamos el rastreador
             }
 
+            // Inyección del Subpunto
             htmlBloque += `
                 <div class="notebook-wrapper">
                     <h3 style="color: var(--primary-color); margin-top:0;">${tituloBloque}</h3>
@@ -282,14 +283,9 @@ function renderDetalleApartado(indexIndice) {
     }
 
     let bloques = AppState.contenidos.filter(row => {
-        if (row.length < 3) return false;
-        const mainPunto = row[0] ? row[0].trim() : '';
+        if (row.length < 5) return false;
         const subPunto = row[1] ? row[1].trim() : '';
-        
-        // EL FIX TAMBIÉN APLICADO AQUÍ
-        const nombreDelBloque = subPunto !== '' ? subPunto : mainPunto;
-        
-        return nombreDelBloque === item.titulo;
+        return subPunto === item.titulo;
     });
     
     let bloquesMostrados = [];
