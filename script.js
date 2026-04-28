@@ -2,13 +2,17 @@
 // CONFIGURACIÓN Y URLS
 // =========================================
 const BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVIJ3VfYy2BwRKgZ4bmXR_AXbANpsT31v7qyM1FOECv4GCpg9VEfiBR9557mYDIPXlQV1jeMmh3tgk/pub";
+
+// OJO: Me diste el GID 436032444 tanto para el Punto 4 como para el 5. 
+// Si la Hoja 7 tiene un GID distinto, cámbialo en la línea de 'p5' abajo.
 const ENDPOINTS = {
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
     p1: `${BASE_URL}?gid=0&output=csv`,
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
-    p45: `${BASE_URL}?gid=436032444&output=csv`
+    p4: `${BASE_URL}?gid=436032444&output=csv`,
+    p5: `${BASE_URL}?gid=436032444&output=csv` 
 };
 
 // =========================================
@@ -25,6 +29,7 @@ const AppState = {
 // PARSER CSV ROBUSTO 
 // =========================================
 function parseCSV(str) {
+    if (!str) return [];
     const arr = [];
     let quote = false;
     for (let row = 0, col = 0, c = 0; c < str.length; c++) {
@@ -44,36 +49,62 @@ function parseCSV(str) {
     return arr;
 }
 
+// Normalizador de texto para búsqueda flexible (quita acentos, mayúsculas y espacios extra)
+function normalizarTexto(txt) {
+    return String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+}
+
 // =========================================
 // MOTOR DE CARGA DE DATOS
 // =========================================
+async function fetchSafe(url) {
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return '';
+        return await res.text();
+    } catch(e) {
+        return ''; // Si falla una hoja, no rompe toda la app
+    }
+}
+
 async function initApp() {
     try {
-        const [csvFichas, csvIndice, csvP1, csvP2, csvP3, csvP45] = await Promise.all([
-            fetch(ENDPOINTS.fichas).then(r => r.text()),
-            fetch(ENDPOINTS.indice).then(r => r.text()),
-            fetch(ENDPOINTS.p1).then(r => r.text()),
-            fetch(ENDPOINTS.p2).then(r => r.text()),
-            fetch(ENDPOINTS.p3).then(r => r.text()),
-            fetch(ENDPOINTS.p45).then(r => r.text())
+        const [csvFichas, csvIndice, csvP1, csvP2, csvP3, csvP4, csvP5] = await Promise.all([
+            fetchSafe(ENDPOINTS.fichas),
+            fetchSafe(ENDPOINTS.indice),
+            fetchSafe(ENDPOINTS.p1),
+            fetchSafe(ENDPOINTS.p2),
+            fetchSafe(ENDPOINTS.p3),
+            fetchSafe(ENDPOINTS.p4),
+            fetchSafe(ENDPOINTS.p5)
         ]);
 
         procesarFichas(parseCSV(csvFichas));
         procesarIndice(parseCSV(csvIndice));
         
-        AppState.contenidos = [
-            ...parseCSV(csvP1),
-            ...parseCSV(csvP2),
-            ...parseCSV(csvP3),
-            ...parseCSV(csvP45)
+        // Unimos contenidos y eliminamos duplicados (por si p4 y p5 tienen el mismo GID)
+        const allRows = [
+            ...parseCSV(csvP1), ...parseCSV(csvP2), ...parseCSV(csvP3), 
+            ...parseCSV(csvP4), ...parseCSV(csvP5)
         ];
+        
+        const uniqueContenidos = [];
+        const seen = new Set();
+        allRows.forEach(row => {
+            const rowStr = row.join('|');
+            if(!seen.has(rowStr) && row.length > 0) {
+                seen.add(rowStr);
+                uniqueContenidos.push(row);
+            }
+        });
+        AppState.contenidos = uniqueContenidos;
 
         document.getElementById('loader').classList.add('hidden');
         router('home');
 
     } catch (error) {
         console.error("Error cargando datos:", error);
-        document.getElementById('loader').innerHTML = "⚠️ Error cargando los datos. Comprueba tu conexión o los enlaces del CSV.";
+        document.getElementById('loader').innerHTML = "⚠️ Error cargando los datos. Revisa la consola.";
     }
 }
 
@@ -124,7 +155,7 @@ function router(view, param = null) {
     else if (view === 'detalle') renderDetalleApartado(param);
 }
 
-// --- VISTA 1: HOME (FICHAS COMPLETAS) ---
+// --- VISTA 1: HOME ---
 function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
@@ -139,7 +170,6 @@ function renderHome() {
         
         let cardHtml = `<div class="ficha-numero">Supuesto ${sup.id}</div>`;
 
-        // Mapeo dinámico y seguro de todas las categorías
         const campos = [
             { l: "Área y Curso", k: ["Área y Curso", "Área"] },
             { l: "Contexto", k: ["Contexto"] },
@@ -153,13 +183,9 @@ function renderHome() {
         campos.forEach(campo => {
             let valor = "";
             for (let i = 0; i < campo.k.length; i++) {
-                if (sup[campo.k[i]]) { 
-                    valor = String(sup[campo.k[i]]); 
-                    break; 
-                }
+                if (sup[campo.k[i]]) { valor = String(sup[campo.k[i]]); break; }
             }
             if (valor) {
-                // Respeta los saltos de línea del CSV (ideal para viñetas numeradas)
                 valor = valor.replace(/\n/g, '<br>');
                 cardHtml += `<div class="ficha-dato" style="margin-bottom:0.8rem;"><strong>${campo.l}:</strong><br><span style="font-size:0.9rem;color:#444;">${valor}</span></div>`;
             }
@@ -185,7 +211,7 @@ function renderIndice() {
     });
 }
 
-// --- VISTA 3: RESOLUCIÓN (INCLUYE PUNTOS PRINCIPALES Y PUNTOS 4-5) ---
+// --- VISTA 3: RESOLUCIÓN ---
 function renderResolucion(supuestoId) {
     document.getElementById('view-resolucion').classList.remove('hidden');
     const sup = AppState.supuestos[supuestoId];
@@ -204,20 +230,31 @@ function renderResolucion(supuestoId) {
     let currentMainPoint = ""; 
 
     AppState.indiceMenu.forEach(itemIndice => {
-        const tituloBloque = itemIndice.titulo;
+        const normTituloIndice = normalizarTexto(itemIndice.titulo);
         
         const bloquesEncontrados = AppState.contenidos.filter(row => {
-            // Extracción segura (String) para evitar bloqueos
+            if (row.length < 2) return false;
             const mainPunto = row[0] ? String(row[0]).trim() : '';
             const subPunto = row[1] ? String(row[1]).trim() : '';
-            const supuestosStr = row[2] ? String(row[2]).trim() : '';
+            const supuestosStr = row[2] ? String(row[2]).trim().toLowerCase() : '';
             
-            // LA SOLUCIÓN: Si la columna B (subPunto) está vacía, usamos la Columna A (mainPunto)
-            const nombreDelBloque = subPunto !== '' ? subPunto : mainPunto;
+            const normMain = normalizarTexto(mainPunto);
+            const normSub = normalizarTexto(subPunto);
             
-            if (nombreDelBloque === tituloBloque) {
+            // Búsqueda flexible
+            let matchTitulo = false;
+            if (normSub !== '' && (normSub.includes(normTituloIndice) || normTituloIndice.includes(normSub))) {
+                matchTitulo = true;
+            } else if (normMain !== '' && (normMain.includes(normTituloIndice) || normTituloIndice.includes(normMain))) {
+                matchTitulo = true;
+            }
+
+            if (matchTitulo) {
                 const idsArray = supuestosStr.split(',').map(s => s.trim());
-                return idsArray.includes(supuestoId.toString()) || idsArray.includes("Todos") || supuestosStr === "";
+                // Si la celda está vacía o pone "todos", aplica a cualquier supuesto.
+                return idsArray.includes(supuestoId.toString()) || 
+                       supuestosStr.includes("todo") || 
+                       supuestosStr === "";
             }
             return false;
         });
@@ -225,7 +262,6 @@ function renderResolucion(supuestoId) {
         if (bloquesEncontrados.length > 0) {
             let htmlBloque = "";
 
-            // INYECCIÓN DEL TÍTULO PRINCIPAL (Columna A)
             const mainPoint = bloquesEncontrados[0][0] ? String(bloquesEncontrados[0][0]).trim() : "";
             if (mainPoint && mainPoint !== currentMainPoint) {
                 htmlBloque += `
@@ -237,10 +273,9 @@ function renderResolucion(supuestoId) {
 
             htmlBloque += `<div class="notebook-wrapper">`;
             
-            // Solo dibujamos el H3 si el título del bloque es distinto al principal 
-            // (Para evitar que ponga "4. CONCLUSIONES" dos veces seguidas)
-            if (tituloBloque !== mainPoint) {
-                htmlBloque += `<h3 style="color: var(--primary-color); margin-top:0;">${tituloBloque}</h3>`;
+            // Para evitar duplicar "4. CONCLUSIONES" dos veces
+            if (itemIndice.titulo !== mainPoint) {
+                htmlBloque += `<h3 style="color: var(--primary-color); margin-top:0;">${itemIndice.titulo}</h3>`;
             }
 
             htmlBloque += `
@@ -249,9 +284,15 @@ function renderResolucion(supuestoId) {
             `;
 
             bloquesEncontrados.forEach(row => {
-                const terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
-                const textoHtml = row[4] ? String(row[4]) : '';
+                let terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
+                let textoHtml = row[4] ? String(row[4]) : '';
                 
+                // Salvavidas: si metiste el texto en la col D en vez de la E
+                if (!textoHtml && terminos) {
+                    textoHtml = terminos;
+                    terminos = "Contenido Estructural";
+                }
+
                 htmlBloque += `
                     <div class="notebook-row">
                         <div class="notebook-terms">${terminos}</div>
@@ -271,6 +312,7 @@ function renderDetalleApartado(indexIndice) {
     document.getElementById('view-detalle-apartado').classList.remove('hidden');
     AppState.currentApartadoIndex = indexIndice;
     const item = AppState.indiceMenu[indexIndice];
+    const normTituloIndice = normalizarTexto(item.titulo);
 
     let headerHtml = `
         <h2>${item.titulo}</h2>
@@ -290,12 +332,12 @@ function renderDetalleApartado(indexIndice) {
     }
 
     let bloques = AppState.contenidos.filter(row => {
-        const mainPunto = row[0] ? String(row[0]).trim() : '';
-        const subPunto = row[1] ? String(row[1]).trim() : '';
-        // LA SOLUCIÓN TAMBIÉN APLICADA AQUÍ
-        const nombreDelBloque = subPunto !== '' ? subPunto : mainPunto;
+        if (row.length < 2) return false;
+        const normMain = normalizarTexto(row[0]);
+        const normSub = normalizarTexto(row[1]);
         
-        return nombreDelBloque === item.titulo;
+        return (normSub !== '' && (normSub.includes(normTituloIndice) || normTituloIndice.includes(normSub))) || 
+               (normMain !== '' && (normMain.includes(normTituloIndice) || normTituloIndice.includes(normMain)));
     });
     
     let bloquesMostrados = [];
@@ -303,9 +345,9 @@ function renderDetalleApartado(indexIndice) {
     if (ordenIds.length > 0) {
         ordenIds.forEach(id => {
             const bloqueParaId = bloques.find(row => {
-                const supuestosStr = row[2] ? String(row[2]).trim() : '';
+                const supuestosStr = row[2] ? String(row[2]).trim().toLowerCase() : '';
                 const idsArray = supuestosStr.split(',').map(s => s.trim());
-                return idsArray.includes(id);
+                return idsArray.includes(id) || supuestosStr.includes("todo") || supuestosStr === "";
             });
             
             if (bloqueParaId && !bloquesMostrados.includes(bloqueParaId)) {
@@ -313,7 +355,7 @@ function renderDetalleApartado(indexIndice) {
             }
         });
     } else {
-        bloques.forEach(b => bloquesMostrados.push({ id: b[2], data: b }));
+        bloques.forEach(b => bloquesMostrados.push({ id: b[2] || "Todos", data: b }));
     }
 
     if (bloquesMostrados.length > 0) {
@@ -321,9 +363,14 @@ function renderDetalleApartado(indexIndice) {
 
         bloquesMostrados.forEach(itemInfo => {
             const row = itemInfo.data;
-            const supuestosRef = itemInfo.id || row[2]; 
-            const terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
-            const textoHtml = row[4] ? String(row[4]) : '';
+            const supuestosRef = itemInfo.id || row[2] || "Bloque Común / Todos"; 
+            let terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
+            let textoHtml = row[4] ? String(row[4]) : '';
+            
+            if (!textoHtml && terminos) {
+                textoHtml = terminos;
+                terminos = "Contenido Estructural";
+            }
             
             htmlBloque += `
                 <div class="notebook-row">
@@ -339,7 +386,7 @@ function renderDetalleApartado(indexIndice) {
         htmlBloque += `</div></div>`;
         contentDiv.innerHTML = htmlBloque;
     } else {
-        contentDiv.innerHTML = "<p>No hay bloques de contenido específicos registrados para este apartado.</p>";
+        contentDiv.innerHTML = "<p>No hay bloques de contenido registrados para este apartado.</p>";
     }
 }
 
