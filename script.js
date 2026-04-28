@@ -139,30 +139,29 @@ function renderHome() {
         
         let cardHtml = `<div class="ficha-numero">Supuesto ${sup.id}</div>`;
 
-        // Mapeo dinámico para capturar todos los datos de la ficha
+        // Mapeo dinámico y seguro de todas las categorías
         const campos = [
-            { label: "Área y Curso", keys: ["Área y Curso", "Área"] },
-            { label: "Contexto", keys: ["Contexto"] },
-            { label: "Barreras (Diagnóstico)", keys: ["Barreras (Diagnóstico)", "Barreras"] },
-            { label: "Tarea Pedida", keys: ["Tarea Pedida (Tribunal)", "Tarea Pedidada", "Tarea Pedida"] },
-            { label: "Actividad Estrella", keys: ["Actividad Estrella"] },
-            { label: "Normativa Específica", keys: ["Normativa Específica"] },
-            { label: "Autores Clave", keys: ["Autores Clave"] }
+            { l: "Área y Curso", k: ["Área y Curso", "Área"] },
+            { l: "Contexto", k: ["Contexto"] },
+            { l: "Barreras", k: ["Barreras (Diagnóstico)", "Barreras"] },
+            { l: "Tarea", k: ["Tarea Pedida (Tribunal)", "Tarea Pedidada", "Tarea Pedida"] },
+            { l: "Actividad Estrella", k: ["Actividad Estrella"] },
+            { l: "Normativa", k: ["Normativa Específica"] },
+            { l: "Autores", k: ["Autores Clave"] }
         ];
 
         campos.forEach(campo => {
-            let valor = null;
-            for (let k of campo.keys) {
-                if (sup[k]) { valor = sup[k]; break; }
+            let valor = "";
+            for (let i = 0; i < campo.k.length; i++) {
+                if (sup[campo.k[i]]) { 
+                    valor = String(sup[campo.k[i]]); 
+                    break; 
+                }
             }
             if (valor) {
-                // Respetamos saltos de línea (ej. lista de barreras)
+                // Respeta los saltos de línea del CSV (ideal para viñetas numeradas)
                 valor = valor.replace(/\n/g, '<br>');
-                cardHtml += `
-                    <div class="ficha-dato" style="margin-bottom: 0.8rem;">
-                        <strong>${campo.label}:</strong><br>
-                        <span style="font-size:0.9rem; color:#444;">${valor}</span>
-                    </div>`;
+                cardHtml += `<div class="ficha-dato" style="margin-bottom:0.8rem;"><strong>${campo.l}:</strong><br><span style="font-size:0.9rem;color:#444;">${valor}</span></div>`;
             }
         });
 
@@ -186,12 +185,11 @@ function renderIndice() {
     });
 }
 
-// --- VISTA 3: RESOLUCIÓN (INCLUYE PUNTOS PRINCIPALES) ---
+// --- VISTA 3: RESOLUCIÓN (INCLUYE PUNTOS PRINCIPALES Y PUNTOS 4-5) ---
 function renderResolucion(supuestoId) {
     document.getElementById('view-resolucion').classList.remove('hidden');
     const sup = AppState.supuestos[supuestoId];
     
-    // Cabecera
     let headerHtml = `<h2>Resolución del Supuesto ${supuestoId}</h2>`;
     const area = sup['Área y Curso'] || sup['Área'] || '';
     const contexto = sup['Contexto'] || '';
@@ -203,17 +201,21 @@ function renderResolucion(supuestoId) {
     const contentDiv = document.getElementById('resolucion-content');
     contentDiv.innerHTML = '';
 
-    let currentMainPoint = ""; // Para rastrear los puntos de la Columna A (1, 2, 3...)
+    let currentMainPoint = ""; 
 
     AppState.indiceMenu.forEach(itemIndice => {
         const tituloBloque = itemIndice.titulo;
         
         const bloquesEncontrados = AppState.contenidos.filter(row => {
-            if (row.length < 5) return false;
-            const subPunto = row[1] ? row[1].trim() : '';
-            const supuestosStr = row[2] ? row[2].toString().trim() : '';
+            // Extracción segura (String) para evitar bloqueos
+            const mainPunto = row[0] ? String(row[0]).trim() : '';
+            const subPunto = row[1] ? String(row[1]).trim() : '';
+            const supuestosStr = row[2] ? String(row[2]).trim() : '';
             
-            if (subPunto === tituloBloque) {
+            // LA SOLUCIÓN: Si la columna B (subPunto) está vacía, usamos la Columna A (mainPunto)
+            const nombreDelBloque = subPunto !== '' ? subPunto : mainPunto;
+            
+            if (nombreDelBloque === tituloBloque) {
                 const idsArray = supuestosStr.split(',').map(s => s.trim());
                 return idsArray.includes(supuestoId.toString()) || idsArray.includes("Todos") || supuestosStr === "";
             }
@@ -224,26 +226,31 @@ function renderResolucion(supuestoId) {
             let htmlBloque = "";
 
             // INYECCIÓN DEL TÍTULO PRINCIPAL (Columna A)
-            const mainPoint = bloquesEncontrados[0][0] ? bloquesEncontrados[0][0].trim() : "";
+            const mainPoint = bloquesEncontrados[0][0] ? String(bloquesEncontrados[0][0]).trim() : "";
             if (mainPoint && mainPoint !== currentMainPoint) {
                 htmlBloque += `
                     <h2 style="color: var(--primary-color); border-bottom: 3px solid var(--accent-color); padding-bottom: 0.5rem; margin-top: 3rem; margin-bottom: 1.5rem; font-size: 2rem;">
                         ${mainPoint}
                     </h2>`;
-                currentMainPoint = mainPoint; // Actualizamos el rastreador
+                currentMainPoint = mainPoint; 
             }
 
-            // Inyección del Subpunto
+            htmlBloque += `<div class="notebook-wrapper">`;
+            
+            // Solo dibujamos el H3 si el título del bloque es distinto al principal 
+            // (Para evitar que ponga "4. CONCLUSIONES" dos veces seguidas)
+            if (tituloBloque !== mainPoint) {
+                htmlBloque += `<h3 style="color: var(--primary-color); margin-top:0;">${tituloBloque}</h3>`;
+            }
+
             htmlBloque += `
-                <div class="notebook-wrapper">
-                    <h3 style="color: var(--primary-color); margin-top:0;">${tituloBloque}</h3>
                     <p class="desc-seccion" style="font-size:0.9rem; margin-bottom: 1rem;">${itemIndice.desc}</p>
                     <div class="notebook-container">
             `;
 
             bloquesEncontrados.forEach(row => {
-                const terminos = row[3] ? row[3].replace(/\n/g, '<br>') : '';
-                const textoHtml = row[4] ? row[4] : '';
+                const terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
+                const textoHtml = row[4] ? String(row[4]) : '';
                 
                 htmlBloque += `
                     <div class="notebook-row">
@@ -283,9 +290,12 @@ function renderDetalleApartado(indexIndice) {
     }
 
     let bloques = AppState.contenidos.filter(row => {
-        if (row.length < 5) return false;
-        const subPunto = row[1] ? row[1].trim() : '';
-        return subPunto === item.titulo;
+        const mainPunto = row[0] ? String(row[0]).trim() : '';
+        const subPunto = row[1] ? String(row[1]).trim() : '';
+        // LA SOLUCIÓN TAMBIÉN APLICADA AQUÍ
+        const nombreDelBloque = subPunto !== '' ? subPunto : mainPunto;
+        
+        return nombreDelBloque === item.titulo;
     });
     
     let bloquesMostrados = [];
@@ -293,7 +303,7 @@ function renderDetalleApartado(indexIndice) {
     if (ordenIds.length > 0) {
         ordenIds.forEach(id => {
             const bloqueParaId = bloques.find(row => {
-                const supuestosStr = row[2] ? row[2].toString().trim() : '';
+                const supuestosStr = row[2] ? String(row[2]).trim() : '';
                 const idsArray = supuestosStr.split(',').map(s => s.trim());
                 return idsArray.includes(id);
             });
@@ -312,8 +322,8 @@ function renderDetalleApartado(indexIndice) {
         bloquesMostrados.forEach(itemInfo => {
             const row = itemInfo.data;
             const supuestosRef = itemInfo.id || row[2]; 
-            const terminos = row[3] ? row[3].replace(/\n/g, '<br>') : '';
-            const textoHtml = row[4] ? row[4] : '';
+            const terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
+            const textoHtml = row[4] ? String(row[4]) : '';
             
             htmlBloque += `
                 <div class="notebook-row">
