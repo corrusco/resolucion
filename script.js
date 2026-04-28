@@ -15,14 +15,14 @@ const ENDPOINTS = {
 // ESTADO GLOBAL DE LA APP
 // =========================================
 const AppState = {
-    supuestos: {}, // Objeto agrupado por ID de supuesto
-    indiceMenu: [], // Array con el índice de la hoja 2
-    contenidos: [], // Array gigante con todas las filas de las hojas 3 a 7
-    currentApartadoIndex: 0 // Para el botón de "Siguiente Apartado"
+    supuestos: {}, 
+    indiceMenu: [], 
+    contenidos: [], 
+    currentApartadoIndex: 0 
 };
 
 // =========================================
-// PARSER CSV ROBUSTO (Maneja comas dentro de comillas)
+// PARSER CSV ROBUSTO 
 // =========================================
 function parseCSV(str) {
     const arr = [];
@@ -49,7 +49,6 @@ function parseCSV(str) {
 // =========================================
 async function initApp() {
     try {
-        // Fetch paralelo de todas las hojas
         const [csvFichas, csvIndice, csvP1, csvP2, csvP3, csvP45] = await Promise.all([
             fetch(ENDPOINTS.fichas).then(r => r.text()),
             fetch(ENDPOINTS.indice).then(r => r.text()),
@@ -62,7 +61,6 @@ async function initApp() {
         procesarFichas(parseCSV(csvFichas));
         procesarIndice(parseCSV(csvIndice));
         
-        // Unimos todos los contenidos de desarrollo en un solo array maestro
         AppState.contenidos = [
             ...parseCSV(csvP1),
             ...parseCSV(csvP2),
@@ -126,7 +124,7 @@ function router(view, param = null) {
     else if (view === 'detalle') renderDetalleApartado(param);
 }
 
-// --- VISTA 1: HOME ---
+// --- VISTA 1: HOME (FICHAS COMPLETAS) ---
 function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
@@ -139,16 +137,36 @@ function renderHome() {
         div.className = 'card-ficha';
         div.onclick = () => router('resolucion', sup.id);
         
-        const area = sup['Área y Curso'] || sup['Área'] || 'Área no especificada';
-        const contexto = sup['Contexto'] || 'Contexto no especificado';
-        const tarea = sup['Tarea Pedida (Tribunal)'] || sup['Tarea Pedida'] || 'Sin tarea especificada';
+        let cardHtml = `<div class="ficha-numero">Supuesto ${sup.id}</div>`;
 
-        div.innerHTML = `
-            <div class="ficha-numero">Supuesto ${sup.id}</div>
-            <div class="ficha-dato"><strong>Área/Curso:</strong> ${area}</div>
-            <div class="ficha-dato"><strong>Contexto:</strong> ${contexto}</div>
-            <div class="ficha-dato"><strong>Tarea:</strong> ${tarea}</div>
-        `;
+        // Mapeo dinámico para capturar todos los datos de la ficha
+        const campos = [
+            { label: "Área y Curso", keys: ["Área y Curso", "Área"] },
+            { label: "Contexto", keys: ["Contexto"] },
+            { label: "Barreras (Diagnóstico)", keys: ["Barreras (Diagnóstico)", "Barreras"] },
+            { label: "Tarea Pedida", keys: ["Tarea Pedida (Tribunal)", "Tarea Pedidada", "Tarea Pedida"] },
+            { label: "Actividad Estrella", keys: ["Actividad Estrella"] },
+            { label: "Normativa Específica", keys: ["Normativa Específica"] },
+            { label: "Autores Clave", keys: ["Autores Clave"] }
+        ];
+
+        campos.forEach(campo => {
+            let valor = null;
+            for (let k of campo.keys) {
+                if (sup[k]) { valor = sup[k]; break; }
+            }
+            if (valor) {
+                // Respetamos saltos de línea (ej. lista de barreras)
+                valor = valor.replace(/\n/g, '<br>');
+                cardHtml += `
+                    <div class="ficha-dato" style="margin-bottom: 0.8rem;">
+                        <strong>${campo.label}:</strong><br>
+                        <span style="font-size:0.9rem; color:#444;">${valor}</span>
+                    </div>`;
+            }
+        });
+
+        div.innerHTML = cardHtml;
         grid.appendChild(div);
     });
 }
@@ -168,18 +186,24 @@ function renderIndice() {
     });
 }
 
-// --- VISTA 3: RESOLUCIÓN (Un supuesto entero) ---
+// --- VISTA 3: RESOLUCIÓN (INCLUYE PUNTOS PRINCIPALES) ---
 function renderResolucion(supuestoId) {
     document.getElementById('view-resolucion').classList.remove('hidden');
     const sup = AppState.supuestos[supuestoId];
     
-    document.getElementById('resolucion-header').innerHTML = `
-        <h2>Resolución del Supuesto ${supuestoId}</h2>
-        <p class="desc-seccion">${sup['Área y Curso'] || ''} - ${sup['Contexto'] || ''}</p>
-    `;
+    // Cabecera
+    let headerHtml = `<h2>Resolución del Supuesto ${supuestoId}</h2>`;
+    const area = sup['Área y Curso'] || sup['Área'] || '';
+    const contexto = sup['Contexto'] || '';
+    if(area || contexto) {
+        headerHtml += `<p class="desc-seccion">${area} - ${contexto}</p>`;
+    }
+    document.getElementById('resolucion-header').innerHTML = headerHtml;
 
     const contentDiv = document.getElementById('resolucion-content');
     contentDiv.innerHTML = '';
+
+    let currentMainPoint = ""; // Para rastrear los puntos de la Columna A (1, 2, 3...)
 
     AppState.indiceMenu.forEach(itemIndice => {
         const tituloBloque = itemIndice.titulo;
@@ -197,7 +221,20 @@ function renderResolucion(supuestoId) {
         });
 
         if (bloquesEncontrados.length > 0) {
-            let htmlBloque = `
+            let htmlBloque = "";
+
+            // INYECCIÓN DEL TÍTULO PRINCIPAL (Columna A)
+            const mainPoint = bloquesEncontrados[0][0] ? bloquesEncontrados[0][0].trim() : "";
+            if (mainPoint && mainPoint !== currentMainPoint) {
+                htmlBloque += `
+                    <h2 style="color: var(--primary-color); border-bottom: 3px solid var(--accent-color); padding-bottom: 0.5rem; margin-top: 3rem; margin-bottom: 1.5rem; font-size: 2rem;">
+                        ${mainPoint}
+                    </h2>`;
+                currentMainPoint = mainPoint; // Actualizamos el rastreador
+            }
+
+            // Inyección del Subpunto
+            htmlBloque += `
                 <div class="notebook-wrapper">
                     <h3 style="color: var(--primary-color); margin-top:0;">${tituloBloque}</h3>
                     <p class="desc-seccion" style="font-size:0.9rem; margin-bottom: 1rem;">${itemIndice.desc}</p>
