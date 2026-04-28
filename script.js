@@ -10,7 +10,7 @@ const ENDPOINTS = {
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
     p4: `${BASE_URL}?gid=436032444&output=csv`,
-    p5: `${BASE_URL}?gid=1447159089&output=csv` // <--- ¡AQUÍ ESTÁ EL GID CORREGIDO!
+    p5: `${BASE_URL}?gid=1447159089&output=csv` // GID correcto para el Punto 5
 };
 
 // =========================================
@@ -47,7 +47,7 @@ function parseCSV(str) {
     return arr;
 }
 
-// Normalizador de texto para búsqueda flexible (quita acentos, mayúsculas y espacios extra)
+// Normalizador de texto para búsqueda flexible
 function normalizarTexto(txt) {
     if (!txt) return '';
     return String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
@@ -81,7 +81,6 @@ async function initApp() {
         procesarFichas(parseCSV(csvFichas));
         procesarIndice(parseCSV(csvIndice));
         
-        // Unimos contenidos
         const allRows = [
             ...parseCSV(csvP1), ...parseCSV(csvP2), ...parseCSV(csvP3), 
             ...parseCSV(csvP4), ...parseCSV(csvP5)
@@ -237,29 +236,25 @@ function renderResolucion(supuestoId) {
             const subPunto = row[1] ? String(row[1]).trim() : '';
             const supuestosStr = row[2] ? String(row[2]).trim().toLowerCase() : '';
             
-            const normMain = normalizarTexto(mainPunto);
-            const normSub = normalizarTexto(subPunto);
+            // LA CORRECCIÓN: Si hay subpunto, el objetivo de búsqueda es el subpunto. 
+            // Si no hay subpunto (Puntos 4 y 5), el objetivo es el mainPunto.
+            const targetPunto = subPunto !== '' ? subPunto : mainPunto;
+            const normTarget = normalizarTexto(targetPunto);
             
-            // Búsqueda flexible (Fuzzy match)
             let matchTitulo = false;
-            if (normSub !== '' && (normSub.includes(normTituloIndice) || normTituloIndice.includes(normSub))) {
-                matchTitulo = true;
-            } else if (normMain !== '' && (normMain.includes(normTituloIndice) || normTituloIndice.includes(normMain))) {
+            // Evaluamos solo contra el target real para evitar solapamientos
+            if (normTarget !== '' && (normTarget.includes(normTituloIndice) || normTituloIndice.includes(normTarget))) {
                 matchTitulo = true;
             }
 
             if (matchTitulo) {
-                // Si la columna C está vacía, es un bloque FIJO, aplica a todos.
                 if (supuestosStr === "" || supuestosStr.includes("todo")) return true;
-                
-                // Extraer solo los números del string "1, 3, 5" etc.
                 const regex = /\d+/g;
                 let match;
                 const idsArray = [];
                 while ((match = regex.exec(supuestosStr)) !== null) {
                     idsArray.push(match[0]);
                 }
-                
                 return idsArray.includes(supuestoId.toString());
             }
             return false;
@@ -269,6 +264,9 @@ function renderResolucion(supuestoId) {
             let htmlBloque = "";
 
             const mainPoint = bloquesEncontrados[0][0] ? String(bloquesEncontrados[0][0]).trim() : "";
+            const subPoint = bloquesEncontrados[0][1] ? String(bloquesEncontrados[0][1]).trim() : "";
+
+            // Inyectamos el Gran Titular solo si hemos cambiado de punto principal (1, 2, 3...)
             if (mainPoint && mainPoint !== currentMainPoint) {
                 htmlBloque += `
                     <h2 style="color: var(--primary-color); border-bottom: 3px solid var(--accent-color); padding-bottom: 0.5rem; margin-top: 3rem; margin-bottom: 1.5rem; font-size: 2rem;">
@@ -279,20 +277,21 @@ function renderResolucion(supuestoId) {
 
             htmlBloque += `<div class="notebook-wrapper">`;
             
-            if (itemIndice.titulo !== mainPoint) {
+            // CORRECCIÓN PUNTO 5: Solo inyectamos el H3 (Subtítulo) si la celda de subPunto no estaba vacía.
+            if (subPoint !== "") {
                 htmlBloque += `<h3 style="color: var(--primary-color); margin-top:0;">${itemIndice.titulo}</h3>`;
             }
 
-            htmlBloque += `
-                    <p class="desc-seccion" style="font-size:0.9rem; margin-bottom: 1rem;">${itemIndice.desc}</p>
-                    <div class="notebook-container">
-            `;
+            if (itemIndice.desc) {
+                htmlBloque += `<p class="desc-seccion" style="font-size:0.9rem; margin-bottom: 1rem;">${itemIndice.desc}</p>`;
+            }
+            
+            htmlBloque += `<div class="notebook-container">`;
 
             bloquesEncontrados.forEach(row => {
                 let terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
                 let textoHtml = row[4] ? String(row[4]) : '';
                 
-                // Si el texto está desplazado de columna
                 if (!textoHtml && terminos) {
                     textoHtml = terminos;
                     terminos = "Contenido";
@@ -333,7 +332,6 @@ function renderDetalleApartado(indexIndice) {
 
     let ordenIds = [];
     if (item.orden) {
-        // Extraer números limpios para la ordenación
         const regex = /\d+/g;
         let match;
         while ((match = regex.exec(item.orden)) !== null) {
@@ -343,11 +341,14 @@ function renderDetalleApartado(indexIndice) {
 
     let bloques = AppState.contenidos.filter(row => {
         if (row.length < 2) return false;
-        const normMain = normalizarTexto(row[0]);
-        const normSub = normalizarTexto(row[1]);
+        const mainPunto = row[0] ? String(row[0]).trim() : '';
+        const subPunto = row[1] ? String(row[1]).trim() : '';
         
-        return (normSub !== '' && (normSub.includes(normTituloIndice) || normTituloIndice.includes(normSub))) || 
-               (normMain !== '' && (normMain.includes(normTituloIndice) || normTituloIndice.includes(normMain)));
+        // CORRECCIÓN TAMBIÉN AQUÍ
+        const targetPunto = subPunto !== '' ? subPunto : mainPunto;
+        const normTarget = normalizarTexto(targetPunto);
+        
+        return normTarget !== '' && (normTarget.includes(normTituloIndice) || normTituloIndice.includes(normTarget));
     });
     
     let bloquesMostrados = [];
@@ -372,7 +373,7 @@ function renderDetalleApartado(indexIndice) {
             }
         });
     } else {
-        bloques.forEach(b => bloquesMostrados.push({ id: b[2] || "Bloque Fijo Común", data: b }));
+        bloques.forEach(b => bloquesMostrados.push({ id: b[2] || "Todos / Común", data: b }));
     }
 
     if (bloquesMostrados.length > 0) {
@@ -380,7 +381,7 @@ function renderDetalleApartado(indexIndice) {
 
         bloquesMostrados.forEach(itemInfo => {
             const row = itemInfo.data;
-            const supuestosRef = itemInfo.id || row[2] || "Todos los supuestos (Fijo)"; 
+            const supuestosRef = itemInfo.id || row[2] || "Bloque Fijo"; 
             let terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
             let textoHtml = row[4] ? String(row[4]) : '';
             
