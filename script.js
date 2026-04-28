@@ -3,8 +3,6 @@
 // =========================================
 const BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVIJ3VfYy2BwRKgZ4bmXR_AXbANpsT31v7qyM1FOECv4GCpg9VEfiBR9557mYDIPXlQV1jeMmh3tgk/pub";
 
-// OJO: Me diste el GID 436032444 tanto para el Punto 4 como para el 5. 
-// Si la Hoja 7 tiene un GID distinto, cámbialo en la línea de 'p5' abajo.
 const ENDPOINTS = {
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
@@ -12,7 +10,7 @@ const ENDPOINTS = {
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
     p4: `${BASE_URL}?gid=436032444&output=csv`,
-    p5: `${BASE_URL}?gid=436032444&output=csv` 
+    p5: `${BASE_URL}?gid=1447159089&output=csv` // <--- ¡AQUÍ ESTÁ EL GID CORREGIDO!
 };
 
 // =========================================
@@ -51,6 +49,7 @@ function parseCSV(str) {
 
 // Normalizador de texto para búsqueda flexible (quita acentos, mayúsculas y espacios extra)
 function normalizarTexto(txt) {
+    if (!txt) return '';
     return String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
 }
 
@@ -63,7 +62,7 @@ async function fetchSafe(url) {
         if (!res.ok) return '';
         return await res.text();
     } catch(e) {
-        return ''; // Si falla una hoja, no rompe toda la app
+        return ''; 
     }
 }
 
@@ -82,7 +81,7 @@ async function initApp() {
         procesarFichas(parseCSV(csvFichas));
         procesarIndice(parseCSV(csvIndice));
         
-        // Unimos contenidos y eliminamos duplicados (por si p4 y p5 tienen el mismo GID)
+        // Unimos contenidos
         const allRows = [
             ...parseCSV(csvP1), ...parseCSV(csvP2), ...parseCSV(csvP3), 
             ...parseCSV(csvP4), ...parseCSV(csvP5)
@@ -241,7 +240,7 @@ function renderResolucion(supuestoId) {
             const normMain = normalizarTexto(mainPunto);
             const normSub = normalizarTexto(subPunto);
             
-            // Búsqueda flexible
+            // Búsqueda flexible (Fuzzy match)
             let matchTitulo = false;
             if (normSub !== '' && (normSub.includes(normTituloIndice) || normTituloIndice.includes(normSub))) {
                 matchTitulo = true;
@@ -250,11 +249,18 @@ function renderResolucion(supuestoId) {
             }
 
             if (matchTitulo) {
-                const idsArray = supuestosStr.split(',').map(s => s.trim());
-                // Si la celda está vacía o pone "todos", aplica a cualquier supuesto.
-                return idsArray.includes(supuestoId.toString()) || 
-                       supuestosStr.includes("todo") || 
-                       supuestosStr === "";
+                // Si la columna C está vacía, es un bloque FIJO, aplica a todos.
+                if (supuestosStr === "" || supuestosStr.includes("todo")) return true;
+                
+                // Extraer solo los números del string "1, 3, 5" etc.
+                const regex = /\d+/g;
+                let match;
+                const idsArray = [];
+                while ((match = regex.exec(supuestosStr)) !== null) {
+                    idsArray.push(match[0]);
+                }
+                
+                return idsArray.includes(supuestoId.toString());
             }
             return false;
         });
@@ -273,7 +279,6 @@ function renderResolucion(supuestoId) {
 
             htmlBloque += `<div class="notebook-wrapper">`;
             
-            // Para evitar duplicar "4. CONCLUSIONES" dos veces
             if (itemIndice.titulo !== mainPoint) {
                 htmlBloque += `<h3 style="color: var(--primary-color); margin-top:0;">${itemIndice.titulo}</h3>`;
             }
@@ -287,10 +292,10 @@ function renderResolucion(supuestoId) {
                 let terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
                 let textoHtml = row[4] ? String(row[4]) : '';
                 
-                // Salvavidas: si metiste el texto en la col D en vez de la E
+                // Si el texto está desplazado de columna
                 if (!textoHtml && terminos) {
                     textoHtml = terminos;
-                    terminos = "Contenido Estructural";
+                    terminos = "Contenido";
                 }
 
                 htmlBloque += `
@@ -328,7 +333,12 @@ function renderDetalleApartado(indexIndice) {
 
     let ordenIds = [];
     if (item.orden) {
-        ordenIds = item.orden.split(',').map(s => s.trim());
+        // Extraer números limpios para la ordenación
+        const regex = /\d+/g;
+        let match;
+        while ((match = regex.exec(item.orden)) !== null) {
+            ordenIds.push(match[0]);
+        }
     }
 
     let bloques = AppState.contenidos.filter(row => {
@@ -346,8 +356,15 @@ function renderDetalleApartado(indexIndice) {
         ordenIds.forEach(id => {
             const bloqueParaId = bloques.find(row => {
                 const supuestosStr = row[2] ? String(row[2]).trim().toLowerCase() : '';
-                const idsArray = supuestosStr.split(',').map(s => s.trim());
-                return idsArray.includes(id) || supuestosStr.includes("todo") || supuestosStr === "";
+                if (supuestosStr === "" || supuestosStr.includes("todo")) return true;
+                
+                const regex = /\d+/g;
+                let match;
+                const idsArray = [];
+                while ((match = regex.exec(supuestosStr)) !== null) {
+                    idsArray.push(match[0]);
+                }
+                return idsArray.includes(id);
             });
             
             if (bloqueParaId && !bloquesMostrados.includes(bloqueParaId)) {
@@ -355,7 +372,7 @@ function renderDetalleApartado(indexIndice) {
             }
         });
     } else {
-        bloques.forEach(b => bloquesMostrados.push({ id: b[2] || "Todos", data: b }));
+        bloques.forEach(b => bloquesMostrados.push({ id: b[2] || "Bloque Fijo Común", data: b }));
     }
 
     if (bloquesMostrados.length > 0) {
@@ -363,13 +380,13 @@ function renderDetalleApartado(indexIndice) {
 
         bloquesMostrados.forEach(itemInfo => {
             const row = itemInfo.data;
-            const supuestosRef = itemInfo.id || row[2] || "Bloque Común / Todos"; 
+            const supuestosRef = itemInfo.id || row[2] || "Todos los supuestos (Fijo)"; 
             let terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
             let textoHtml = row[4] ? String(row[4]) : '';
             
             if (!textoHtml && terminos) {
                 textoHtml = terminos;
-                terminos = "Contenido Estructural";
+                terminos = "Contenido";
             }
             
             htmlBloque += `
