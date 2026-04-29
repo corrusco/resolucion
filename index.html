@@ -13,6 +13,7 @@
         <nav>
             <button onclick="router('home')">Supuestos</button>
             <button onclick="router('indice')">Índice de Desarrollo</button>
+            <button onclick="router('desarrollo')">Desarrollo</button>
         </nav>
     </header>
 
@@ -25,19 +26,32 @@
                 <p class="desc-seccion">Selecciona un supuesto para ver su resolución completa.</p>
             </div>
             <div id="grid-fichas" class="grid-fichas"></div>
-            <div class="control-buttons" style="justify-content: center;">
-                <button class="btn-action" onclick="router('indice')">Ver Índice de Desarrollo</button>
+            <div class="control-buttons" style="justify-content: center; gap: 10px;">
+                <button class="btn-action" onclick="router('indice')">Ver Índice</button>
+                <button class="btn-action" onclick="router('desarrollo')">Ver Desarrollo</button>
             </div>
         </section>
 
         <section id="view-indice" class="hidden">
             <div class="header-seccion">
                 <h2>Índice de Resolución</h2>
-                <p class="desc-seccion">Selecciona un apartado para estudiarlo de forma transversal en todos los supuestos.</p>
+                <p class="desc-seccion">Selecciona un apartado para estudiarlo de forma transversal.</p>
             </div>
             <div id="grid-indice" class="grid-indice"></div>
             <div class="control-buttons" style="justify-content: center;">
                 <button class="btn-secondary" onclick="router('home')">Volver a Supuestos</button>
+            </div>
+        </section>
+
+        <section id="view-desarrollo" class="hidden">
+            <div class="header-seccion">
+                <h2>Desarrollo por Apartados</h2>
+                <p class="desc-seccion">Consulta el contenido específico de cada supuesto por sección.</p>
+            </div>
+            <div id="lista-desarrollo"></div>
+            <div class="control-buttons">
+                <button class="btn-secondary" onclick="router('home')">Volver a Supuestos</button>
+                <button class="btn-action" onclick="router('indice')">Índice de Desarrollo</button>
             </div>
         </section>
 
