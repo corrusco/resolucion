@@ -1,7 +1,205 @@
-/* ... (Mantener estilos anteriores) ... */
+/* =========================================
+   PALETA DE COLORES Y ESTILOS GLOBALES
+   ========================================= */
+:root {
+    --bg-color: #fdfbf7;
+    --text-color: #333333;
+    --primary-color: #1a365d; /* Azul oscuro corporativo */
+    --accent-color: #800000;  /* Granate/Burdeos libreta */
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
+    --hover-color: #edf2f7;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+header h1 { margin: 0; font-size: 1.5rem; }
+
+nav button {
+    background-color: transparent;
+    color: white;
+    border: 1px solid white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    margin-left: 10px;
+}
+
+nav button:hover {
+    background-color: white;
+    color: var(--primary-color);
+}
+
+main {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.hidden { display: none !important; }
 
 /* =========================================
-   VISTA: DESARROLLO (REJILLA INTERACTIVA)
+   VISTA: FICHAS DE SUPUESTOS (HOME)
+   ========================================= */
+.grid-fichas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.card-ficha {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-ficha:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+    border-top: 4px solid var(--accent-color);
+}
+
+.ficha-numero {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.ficha-dato { margin-bottom: 0.5rem; font-size: 0.9rem; }
+.ficha-dato strong { color: var(--primary-color); }
+
+/* =========================================
+   VISTA: ÍNDICE DE DESARROLLO (BOTONES)
+   ========================================= */
+.grid-indice {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.btn-indice {
+    background-color: var(--card-bg);
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 1rem;
+    text-align: left;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.btn-indice:hover {
+    background-color: var(--primary-color);
+    color: white;
+    padding-left: 1.5rem; /* Efecto flecha */
+}
+
+/* =========================================
+   ESTILO LIBRETA (RESOLUCIÓN Y DETALLE)
+   ========================================= */
+.header-seccion {
+    margin-bottom: 2rem;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 1rem;
+}
+
+.header-seccion h2 { color: var(--primary-color); font-size: 1.8rem; margin-bottom: 0.5rem;}
+.desc-seccion { font-size: 1.1rem; color: #555; font-style: italic; }
+.justificacion-seccion { background: #f0f4f8; padding: 1rem; border-left: 4px solid var(--primary-color); margin-top: 1rem; border-radius: 4px;}
+
+.notebook-wrapper {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.notebook-container {
+    border-left: 3px solid var(--accent-color);
+    padding-left: 1.5rem;
+    margin-left: 1rem; 
+}
+
+.notebook-row {
+    display: flex;
+    border-bottom: 1px dashed #ccc;
+    padding: 1.5rem 0;
+    gap: 2rem;
+}
+
+.notebook-row:last-child { border-bottom: none; }
+
+.notebook-terms {
+    flex: 0 0 25%;
+    font-weight: bold;
+    color: var(--primary-color);
+    font-size: 0.95rem;
+}
+
+.notebook-content {
+    flex: 1;
+    color: var(--text-color);
+}
+
+.control-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-action {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.btn-action:hover { background-color: var(--accent-color); }
+.btn-secondary { background-color: white; color: var(--primary-color); border: 1px solid var(--primary-color); }
+.btn-secondary:hover { background-color: var(--hover-color); }
+
+#loader { text-align: center; padding: 3rem; font-size: 1.2rem; color: var(--primary-color); font-weight: bold; }
+
+/* =========================================
+   NUEVA VISTA: DESARROLLO (REJILLA INTERACTIVA)
    ========================================= */
 .desarrollo-section {
     background: white;
@@ -22,14 +220,14 @@
 
 .desarrollo-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr); /* 3 columnas */
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
 }
 
 .des-item {
     display: flex;
     flex-direction: column;
-    grid-column: span 1; /* El botón ocupa su celda */
+    grid-column: span 1;
 }
 
 .btn-grid {
@@ -49,7 +247,7 @@
 }
 
 .des-content {
-    grid-column: 1 / span 3; /* El contenido se despliega ocupando todo el ancho de la rejilla */
+    grid-column: 1 / span 3;
     background: #fdfaf0;
     border: 1px solid #d6d1b1;
     padding: 1rem;
@@ -66,12 +264,7 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Ajustes responsive para la rejilla */
 @media (max-width: 600px) {
-    .desarrollo-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    .des-content {
-        grid-column: 1 / span 2;
-    }
+    .desarrollo-grid { grid-template-columns: repeat(2, 1fr); }
+    .des-content { grid-column: 1 / span 2; }
 }
