@@ -1,155 +1,487 @@
+/* =========================================
+   PALETA DE COLORES Y ESTILOS GLOBALES
+   ========================================= */
 :root {
-    --bg-main: #fcfcfc;
-    /* Paleta por secciones */
-    --c1: #fb5607; --c1-f: #ffe5d9; /* Justificación */
-    --c2: #2d6a4f; --c2-f: #d8f3dc; /* Contexto */
-    --c3: #0077b6; --c3-f: #caf0f8; /* Legislación */
-    --c4: #c1121f; --c4-f: #ffadad; /* Currículo */
-    --c5: #7b1fa2; --c5-f: #f3e5f5; /* Metodología */
-    --c6: #0097a7; --c6-f: #e0f7fa; /* Intervención */
-    --c7: #c2185b; --c7-f: #fce4ec; /* Diversidad */
-    --c8: #f9c74f; --c8-f: #fdffb6; /* Evaluación */
-    --c9: #424242; --c9-f: #f5f5f5; /* Conclusión */
-    /* Colores Especiales Desarrollo */
-    --db-azul: #1a365d;
-    --db-granate: #800000;
+    --bg-color: #fdfbf7;
+    --text-color: #333333;
+    --primary-color: #1a365d; /* Azul oscuro corporativo */
+    --accent-color: #800000;  /* Granate/Burdeos libreta */
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
+    --hover-color: #edf2f7;
+    
+    /* Colores por secciones para el menú */
+    --c1: #fb5607; --c1-f: #ffe5d9; 
+    --c2: #2d6a4f; --c2-f: #d8f3dc; 
+    --c3: #0077b6; --c3-f: #caf0f8; 
+    --c4: #c1121f; --c4-f: #ffadad; 
+    --c5: #7b1fa2; --c5-f: #f3e5f5; 
+    --c6: #0097a7; --c6-f: #e0f7fa; 
+    --c7: #c2185b; --c7-f: #fce4ec; 
+    --c8: #f9c74f; --c8-f: #fdffb6; 
+    --c9: #424242; --c9-f: #f5f5f5; 
 }
 
 body {
-    font-family: -apple-system, sans-serif; background: #fdfbf7; margin: 0; padding: 10px;
-    display: flex; flex-direction: column; align-items: center; color: #333;
+    font-family: -apple-system, Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.6;
     overflow-x: hidden;
 }
 
-.container { width: 100%; max-width: 600px; padding-bottom: 80px; box-sizing: border-box;}
-.hidden { display: none !important; }
-
-header { 
-    width: 100%; position: sticky; top: 0; background: white; 
-    z-index: 2000; padding: 15px 0; border-bottom: 2px solid #eee; text-align: center;
+.container { 
+    width: 100%; 
+    max-width: 600px; 
+    padding-bottom: 80px; /* Espacio para el menú inferior */
+    box-sizing: border-box;
 }
-header h1 { margin: 0; font-size: 1.1rem; text-transform: uppercase; font-weight: 800; }
 
-/* MENÚ PRINCIPAL */
-.grid-indice { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.hidden { 
+    display: none !important; 
+}
+
+/* =========================================
+   CABECERA PRINCIPAL (HEADER)
+   ========================================= */
+header {
+    width: 100%;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 2000;
+    padding: 15px 0;
+    border-bottom: 2px solid #eee;
+    text-align: center;
+}
+
+header h1 { 
+    margin: 0 0 10px 0; 
+    font-size: 1.2rem; 
+    text-transform: uppercase; 
+    font-weight: 800; 
+    color: var(--primary-color);
+}
+
+nav {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+nav button {
+    background-color: var(--hover-color);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    padding: 0.5rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+nav button:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* =========================================
+   VISTA: FICHAS DE SUPUESTOS (HOME)
+   ========================================= */
+.header-seccion { 
+    margin-top: 15px; 
+    margin-bottom: 20px; 
+    border-bottom: 2px solid var(--border-color); 
+    padding-bottom: 10px; 
+}
+
+.header-seccion h2 { 
+    color: var(--primary-color); 
+    font-size: 1.5rem; 
+    margin: 0 0 5px 0;
+}
+
+.desc-seccion { 
+    font-size: 0.95rem; 
+    color: #555; 
+    font-style: italic; 
+    margin: 0; 
+}
+
+.grid-fichas {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.card-ficha {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-ficha:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    border-top: 4px solid var(--accent-color);
+}
+
+.ficha-numero {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--accent-color);
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.ficha-dato { 
+    margin-bottom: 0.6rem; 
+    font-size: 0.9rem; 
+    line-height: 1.4;
+}
+
+.ficha-dato strong { 
+    color: var(--primary-color); 
+}
+
+/* =========================================
+   VISTA: ÍNDICE DE DESARROLLO (CASCADA)
+   ========================================= */
+.grid-indice { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 10px; 
+    margin-top: 10px; 
+}
+
 .card-menu {
-    background: white; border: 2px solid #ddd; border-left-width: 10px;
-    border-radius: 12px; padding: 15px; cursor: pointer;
+    background: white; 
+    border: 2px solid #ddd; 
+    border-left-width: 10px;
+    border-radius: 12px; 
+    padding: 15px; 
+    cursor: pointer;
+    transition: transform 0.1s;
 }
+
+.card-menu:active { transform: scale(0.98); }
 .card-menu h2 { margin: 0; font-size: 1.1rem; }
 .card-menu p { margin: 5px 0 0 0; font-size: 0.85rem; color: #666; line-height: 1.3; }
 
-/* COLORES DINÁMICOS */
+/* Colores Menú Índice */
 .m1 { border-color: var(--c1); } .m2 { border-color: var(--c2); }
 .m3 { border-color: var(--c3); } .m4 { border-color: var(--c4); }
 .m5 { border-color: var(--c5); } .m6 { border-color: var(--c6); }
 .m7 { border-color: var(--c7); } .m8 { border-color: var(--c8); }
 .m9 { border-color: var(--c9); }
 
-/* CASCADA (A,B,C) */
+/* Estilo de los botones de cascada */
 .btn-cascada {
-    width: 100%; padding: 14px; margin-top: 10px;
-    border: 2px solid; border-radius: 10px; text-align: left;
-    font-weight: 800; font-size: 0.9rem; cursor: pointer;
-}
-.content-block {
-    background: white; border: 1.5px solid #eee; border-left: 5px solid #333;
-    padding: 15px; margin: 8px 0 15px 10px; border-radius: 6px;
-    font-size: 0.95rem; line-height: 1.5;
+    width: 100%; 
+    padding: 14px; 
+    margin-top: 10px;
+    border: 2px solid; 
+    border-radius: 10px; 
+    text-align: left;
+    font-weight: 800; 
+    font-size: 0.95rem; 
+    cursor: pointer;
 }
 
-/* NAVEGACIÓN INFERIOR COMPACTA */
-.nav-inferior {
-    position: fixed; bottom: 0; left: 0; width: 100%;
-    display: flex; gap: 5px; padding: 10px; background: white;
-    box-shadow: 0 -3px 10px rgba(0,0,0,0.05); z-index: 3000;
-    box-sizing: border-box; justify-content: center;
+/* =========================================
+   ESTILO LIBRETA (RESOLUCIÓN Y DETALLE)
+   ========================================= */
+.notebook-wrapper {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
 }
-.btn-nav {
-    flex: 1; max-width: 200px; padding: 14px; border: none; border-radius: 8px;
-    background: #333; color: white; font-weight: 800; font-size: 0.8rem;
+
+.notebook-container {
+    border-left: 3px solid var(--accent-color);
+    padding-left: 1rem;
+    margin-left: 0.5rem; 
 }
-.btn-home { background: #666; }
+
+.notebook-row {
+    display: flex;
+    flex-direction: column; /* Apilado en móvil por defecto */
+    border-bottom: 1px dashed #ccc;
+    padding: 1.2rem 0;
+    gap: 0.8rem;
+}
+
+.notebook-row:last-child { border-bottom: none; }
+
+.notebook-terms {
+    font-weight: bold;
+    color: var(--primary-color);
+    font-size: 0.95rem;
+}
+
+.notebook-content {
+    color: var(--text-color);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.justificacion-seccion { 
+    background: #f0f4f8; 
+    padding: 1rem; 
+    border-left: 4px solid var(--primary-color); 
+    margin-top: 1rem; 
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
 
 /* =========================================
    VISTA ESPECIAL: DESARROLLO (REJILLA + MODAL)
    ========================================= */
-.header-seccion { margin-top: 10px; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
-.desc-seccion { font-size: 0.9rem; color: #555; font-style: italic; margin: 0; }
-
 .desarrollo-section {
-    background: white; margin-bottom: 1.5rem; padding: 1.2rem;
-    border-radius: 10px; border: 1px solid var(--border-color);
+    background: white; 
+    margin-bottom: 1.5rem; 
+    padding: 1.2rem;
+    border-radius: 10px; 
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
 }
+
 .desarrollo-titulo {
-    font-size: 1.05rem; color: var(--db-azul);
-    border-left: 5px solid var(--db-granate);
-    padding-left: 10px; margin-bottom: 1rem;
-    font-weight: 800; line-height: 1.4;
+    font-size: 1.05rem; 
+    color: var(--primary-color);
+    border-left: 5px solid var(--accent-color);
+    padding-left: 10px; 
+    margin-bottom: 1rem;
+    font-weight: 800; 
+    line-height: 1.4;
 }
 
 /* La rejilla flexible de botones */
 .desarrollo-grid {
-    display: flex; flex-wrap: wrap; gap: 8px;
-    padding: 5px; background: rgba(0,0,0,0.02); border-radius: 8px;
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 8px;
+    padding: 8px; 
+    background: rgba(0,0,0,0.02); 
+    border-radius: 8px;
 }
-.btn-grid {
-    flex: 1 1 calc(20% - 8px); /* 5 columnas aprox */
-    background-color: white; border: 2px solid var(--db-azul);
-    color: var(--db-azul); padding: 10px 5px;
-    font-weight: bold; font-size: 0.8rem; border-radius: 6px;
-    cursor: pointer; text-align: center;
-}
-.btn-grid:hover { background-color: #f0f4f8; }
 
-/* ESTILOS DE LA VENTANA EMERGENTE (MODAL) */
+.btn-grid {
+    flex: 1 1 calc(33.333% - 8px); /* 3 columnas base */
+    background-color: white; 
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color); 
+    padding: 10px 5px;
+    font-weight: bold; 
+    font-size: 0.85rem; 
+    border-radius: 6px;
+    cursor: pointer; 
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.btn-grid:hover { 
+    background-color: var(--hover-color); 
+}
+
+/* =========================================
+   VENTANA EMERGENTE (MODAL)
+   ========================================= */
 .desarrollo-modal-backdrop {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.6); /* Fondo oscurecido */
-    z-index: 5000; /* Encima de todo */
-    display: flex; justify-content: center; align-items: center;
-    opacity: 0; animation: fadeInModal 0.3s ease forwards;
-    padding: 20px; box-sizing: border-box;
+    position: fixed; 
+    top: 0; 
+    left: 0;
+    width: 100%; 
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.65); /* Fondo oscuro */
+    z-index: 5000; /* Siempre encima */
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    opacity: 0; 
+    animation: fadeInModal 0.3s ease forwards;
+    padding: 15px; 
+    box-sizing: border-box;
 }
 
 .desarrollo-modal-content {
-    position: relative; /* Para la X de cierre */
-    background: white; border-radius: 12px;
-    width: 95%; max-width: 600px; /* Mismo ancho esquema */
-    max-height: 85%; /* No salir de pantalla */
-    overflow-y: auto; /* Scroll interno si es largo */
+    position: relative; 
+    background: white; 
+    border-radius: 12px;
+    width: 100%; 
+    max-width: 600px; 
+    max-height: 85vh; /* Altura máxima para permitir scroll */
+    overflow-y: auto; 
     box-shadow: 0 15px 40px rgba(0,0,0,0.3);
-    padding: 25px; box-sizing: border-box;
-    border-left: 8px solid var(--db-granate); /* Estilo Libreta */
+    padding: 20px 20px 25px 20px; 
+    box-sizing: border-box;
+    border-left: 8px solid var(--accent-color); /* Toque de libreta */
     animation: slideInModal 0.3s ease forwards;
 }
 
 .modal-titulo {
-    font-size: 1rem; color: var(--db-azul); margin-top: 0;
-    margin-bottom: 1.2rem; padding-right: 35px; /* Espacio para X */
-    border-bottom: 2px solid #eee; padding-bottom: 10px;
-    font-weight: 800; text-transform: uppercase;
+    font-size: 1.1rem; 
+    color: var(--primary-color); 
+    margin-top: 0;
+    margin-bottom: 1.2rem; 
+    padding-right: 35px; /* Espacio para la X */
+    border-bottom: 2px solid #eee; 
+    padding-bottom: 10px;
+    font-weight: 800; 
+    line-height: 1.4;
 }
 
 .modal-body {
-    font-size: 0.95rem; line-height: 1.6; color: #333;
+    font-size: 0.95rem; 
+    line-height: 1.6; 
+    color: #333;
 }
-.modal-body p { margin-top: 0; margin-bottom: 1rem; }
 
-/* El botón X de cierre en la esquina */
-.desarrollo-modal-close {
-    position: absolute; top: 15px; right: 15px;
-    background: transparent; border: none;
-    color: #bbb; font-size: 2rem; cursor: pointer;
-    line-height: 1; padding: 0; width: 30px; height: 30px;
-    text-align: center; font-weight: bold;
+/* Asegurar que las listas dentro del modal tengan margen */
+.modal-body ul {
+    padding-left: 20px;
+    margin-bottom: 10px;
 }
-.desarrollo-modal-close:hover { color: var(--db-granate); }
+
+/* El botón X de cierre */
+.desarrollo-modal-close {
+    position: absolute; 
+    top: 15px; 
+    right: 15px;
+    background: transparent; 
+    border: none;
+    color: #999; 
+    font-size: 2rem; 
+    cursor: pointer;
+    line-height: 1; 
+    padding: 0; 
+    width: 30px; 
+    height: 30px;
+    text-align: center; 
+    font-weight: bold;
+    transition: color 0.2s;
+}
+
+.desarrollo-modal-close:hover { 
+    color: var(--accent-color); 
+}
 
 @keyframes fadeInModal { to { opacity: 1; } }
 @keyframes slideInModal { from { transform: translateY(20px); } to { transform: translateY(0); } }
 
-/* Limpieza de estilos antiguos desarrollo que ya no sirven */
-.desarrollo-contenidos { display: none !important; }
-.des-content { display: none !important; }
+/* =========================================
+   NAVEGACIÓN INFERIOR Y BOTONES DE CONTROL
+   ========================================= */
+.nav-inferior {
+    position: fixed; 
+    bottom: 0; 
+    left: 0; 
+    width: 100%;
+    display: flex; 
+    gap: 5px; 
+    padding: 10px; 
+    background: white;
+    box-shadow: 0 -3px 10px rgba(0,0,0,0.05); 
+    z-index: 3000;
+    box-sizing: border-box; 
+    justify-content: center;
+}
+
+.btn-nav {
+    flex: 1; 
+    max-width: 200px; 
+    padding: 14px; 
+    border: none; 
+    border-radius: 8px;
+    background: #333; 
+    color: white; 
+    font-weight: 800; 
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.btn-home { 
+    background: #666; 
+}
+
+.control-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-action, .btn-secondary {
+    padding: 0.8rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.btn-action {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.btn-secondary { 
+    background-color: white; 
+    color: var(--primary-color); 
+    border: 1px solid var(--primary-color); 
+}
+
+/* Loader */
+#loader { 
+    text-align: center; 
+    padding: 3rem 1rem; 
+    font-size: 1.1rem; 
+    color: var(--primary-color); 
+    font-weight: bold; 
+}
+
+/* =========================================
+   MEDIA QUERIES (RESPONSIVE)
+   ========================================= */
+@media (min-width: 768px) {
+    .notebook-row {
+        flex-direction: row; /* En pantallas grandes, lado a lado */
+    }
+    .notebook-terms {
+        flex: 0 0 30%;
+    }
+    .btn-grid { 
+        flex: 1 1 calc(20% - 8px); /* 5 columnas en PC */ 
+    }
+}
+
+@media (max-width: 400px) {
+    .btn-grid { 
+        flex: 1 1 calc(50% - 8px); /* 2 columnas en móviles pequeños */ 
+    }
+    .modal-titulo {
+        font-size: 1rem;
+    }
+    .desarrollo-modal-content {
+        padding: 20px 15px;
+    }
+}
