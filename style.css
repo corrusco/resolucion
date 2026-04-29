@@ -1,341 +1,155 @@
-/* =========================================
-   PALETA DE COLORES Y ESTILOS GLOBALES
-   ========================================= */
 :root {
-    --bg-color: #fdfbf7;
-    --text-color: #333333;
-    --primary-color: #1a365d; /* Azul oscuro corporativo */
-    --accent-color: #800000;  /* Granate/Burdeos libreta */
-    --card-bg: #ffffff;
-    --border-color: #e2e8f0;
-    --hover-color: #edf2f7;
+    --bg-main: #fcfcfc;
+    /* Paleta por secciones */
+    --c1: #fb5607; --c1-f: #ffe5d9; /* Justificación */
+    --c2: #2d6a4f; --c2-f: #d8f3dc; /* Contexto */
+    --c3: #0077b6; --c3-f: #caf0f8; /* Legislación */
+    --c4: #c1121f; --c4-f: #ffadad; /* Currículo */
+    --c5: #7b1fa2; --c5-f: #f3e5f5; /* Metodología */
+    --c6: #0097a7; --c6-f: #e0f7fa; /* Intervención */
+    --c7: #c2185b; --c7-f: #fce4ec; /* Diversidad */
+    --c8: #f9c74f; --c8-f: #fdffb6; /* Evaluación */
+    --c9: #424242; --c9-f: #f5f5f5; /* Conclusión */
+    /* Colores Especiales Desarrollo */
+    --db-azul: #1a365d;
+    --db-granate: #800000;
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    margin: 0;
-    padding: 0;
-    line-height: 1.6;
+    font-family: -apple-system, sans-serif; background: #fdfbf7; margin: 0; padding: 10px;
+    display: flex; flex-direction: column; align-items: center; color: #333;
+    overflow-x: hidden;
 }
 
-header {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+.container { width: 100%; max-width: 600px; padding-bottom: 80px; box-sizing: border-box;}
+.hidden { display: none !important; }
+
+header { 
+    width: 100%; position: sticky; top: 0; background: white; 
+    z-index: 2000; padding: 15px 0; border-bottom: 2px solid #eee; text-align: center;
+}
+header h1 { margin: 0; font-size: 1.1rem; text-transform: uppercase; font-weight: 800; }
+
+/* MENÚ PRINCIPAL */
+.grid-indice { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.card-menu {
+    background: white; border: 2px solid #ddd; border-left-width: 10px;
+    border-radius: 12px; padding: 15px; cursor: pointer;
+}
+.card-menu h2 { margin: 0; font-size: 1.1rem; }
+.card-menu p { margin: 5px 0 0 0; font-size: 0.85rem; color: #666; line-height: 1.3; }
+
+/* COLORES DINÁMICOS */
+.m1 { border-color: var(--c1); } .m2 { border-color: var(--c2); }
+.m3 { border-color: var(--c3); } .m4 { border-color: var(--c4); }
+.m5 { border-color: var(--c5); } .m6 { border-color: var(--c6); }
+.m7 { border-color: var(--c7); } .m8 { border-color: var(--c8); }
+.m9 { border-color: var(--c9); }
+
+/* CASCADA (A,B,C) */
+.btn-cascada {
+    width: 100%; padding: 14px; margin-top: 10px;
+    border: 2px solid; border-radius: 10px; text-align: left;
+    font-weight: 800; font-size: 0.9rem; cursor: pointer;
+}
+.content-block {
+    background: white; border: 1.5px solid #eee; border-left: 5px solid #333;
+    padding: 15px; margin: 8px 0 15px 10px; border-radius: 6px;
+    font-size: 0.95rem; line-height: 1.5;
 }
 
-header h1 { 
-    margin: 0; 
-    font-size: 1.5rem; 
+/* NAVEGACIÓN INFERIOR COMPACTA */
+.nav-inferior {
+    position: fixed; bottom: 0; left: 0; width: 100%;
+    display: flex; gap: 5px; padding: 10px; background: white;
+    box-shadow: 0 -3px 10px rgba(0,0,0,0.05); z-index: 3000;
+    box-sizing: border-box; justify-content: center;
 }
-
-nav button {
-    background-color: transparent;
-    color: white;
-    border: 1px solid white;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    margin-left: 10px;
+.btn-nav {
+    flex: 1; max-width: 200px; padding: 14px; border: none; border-radius: 8px;
+    background: #333; color: white; font-weight: 800; font-size: 0.8rem;
 }
-
-nav button:hover {
-    background-color: white;
-    color: var(--primary-color);
-}
-
-main {
-    padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.hidden { 
-    display: none !important; 
-}
-
-/* =========================================
-   VISTA: FICHAS DE SUPUESTOS (HOME)
-   ========================================= */
-.grid-fichas {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-}
-
-.card-ficha {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-top: 4px solid var(--primary-color);
-    border-radius: 8px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card-ficha:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 15px rgba(0,0,0,0.1);
-    border-top: 4px solid var(--accent-color);
-}
-
-.ficha-numero {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: var(--accent-color);
-    margin-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.5rem;
-}
-
-.ficha-dato { 
-    margin-bottom: 0.5rem; 
-    font-size: 0.9rem; 
-}
-
-.ficha-dato strong { 
-    color: var(--primary-color); 
-}
+.btn-home { background: #666; }
 
 /* =========================================
-   VISTA: ÍNDICE DE DESARROLLO (BOTONES)
+   VISTA ESPECIAL: DESARROLLO (REJILLA + MODAL)
    ========================================= */
-.grid-indice {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
-    max-width: 800px;
-    margin: 0 auto;
-}
+.header-seccion { margin-top: 10px; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+.desc-seccion { font-size: 0.9rem; color: #555; font-style: italic; margin: 0; }
 
-.btn-indice {
-    background-color: var(--card-bg);
-    border: 1px solid var(--primary-color);
-    color: var(--primary-color);
-    padding: 1rem;
-    text-align: left;
-    font-size: 1.1rem;
-    font-weight: bold;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.btn-indice:hover {
-    background-color: var(--primary-color);
-    color: white;
-    padding-left: 1.5rem; /* Efecto flecha visual */
-}
-
-/* =========================================
-   ESTILO LIBRETA (RESOLUCIÓN Y DETALLE)
-   ========================================= */
-.header-seccion {
-    margin-bottom: 2rem;
-    border-bottom: 2px solid var(--border-color);
-    padding-bottom: 1rem;
-}
-
-.header-seccion h2 { 
-    color: var(--primary-color); 
-    font-size: 1.8rem; 
-    margin-bottom: 0.5rem;
-}
-
-.desc-seccion { 
-    font-size: 1.1rem; 
-    color: #555; 
-    font-style: italic; 
-}
-
-.justificacion-seccion { 
-    background: #f0f4f8; 
-    padding: 1rem; 
-    border-left: 4px solid var(--primary-color); 
-    margin-top: 1rem; 
-    border-radius: 4px;
-}
-
-.notebook-wrapper {
-    background: white;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    padding: 2rem;
-    margin-bottom: 2rem;
-}
-
-.notebook-container {
-    border-left: 3px solid var(--accent-color);
-    padding-left: 1.5rem;
-    margin-left: 1rem; 
-}
-
-.notebook-row {
-    display: flex;
-    border-bottom: 1px dashed #ccc;
-    padding: 1.5rem 0;
-    gap: 2rem;
-}
-
-.notebook-row:last-child { 
-    border-bottom: none; 
-}
-
-.notebook-terms {
-    flex: 0 0 25%;
-    font-weight: bold;
-    color: var(--primary-color);
-    font-size: 0.95rem;
-}
-
-.notebook-content {
-    flex: 1;
-    color: var(--text-color);
-}
-
-/* Utilidades para botones de control inferior */
-.control-buttons {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 2rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--border-color);
-}
-
-.btn-action {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 0.8rem 1.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.btn-action:hover { 
-    background-color: var(--accent-color); 
-}
-
-.btn-secondary { 
-    background-color: white; 
-    color: var(--primary-color); 
-    border: 1px solid var(--primary-color); 
-}
-
-.btn-secondary:hover { 
-    background-color: var(--hover-color); 
-}
-
-/* Loader */
-#loader { 
-    text-align: center; 
-    padding: 3rem; 
-    font-size: 1.2rem; 
-    color: var(--primary-color); 
-    font-weight: bold; 
-}
-
-/* =========================================
-   VISTA: DESARROLLO (REJILLA INTERACTIVA)
-   ========================================= */
 .desarrollo-section {
-    background: white;
-    margin-bottom: 2rem;
-    padding: 1.5rem;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    background: white; margin-bottom: 1.5rem; padding: 1.2rem;
+    border-radius: 10px; border: 1px solid var(--border-color);
 }
-
 .desarrollo-titulo {
-    font-size: 1.15rem;
-    color: var(--primary-color);
-    border-left: 5px solid var(--accent-color);
-    padding-left: 1rem;
-    margin-bottom: 1.2rem;
-    line-height: 1.5;
-    font-weight: bold;
+    font-size: 1.05rem; color: var(--db-azul);
+    border-left: 5px solid var(--db-granate);
+    padding-left: 10px; margin-bottom: 1rem;
+    font-weight: 800; line-height: 1.4;
 }
 
 /* La rejilla flexible de botones */
 .desarrollo-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 10px;
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 5px; background: rgba(0,0,0,0.02); border-radius: 8px;
 }
-
 .btn-grid {
-    flex: 1 1 calc(33.333% - 10px); /* 3 columnas en escritorio */
-    background-color: var(--hover-color);
-    border: 2px solid var(--primary-color);
-    color: var(--primary-color);
-    padding: 0.8rem;
-    font-weight: bold;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
+    flex: 1 1 calc(20% - 8px); /* 5 columnas aprox */
+    background-color: white; border: 2px solid var(--db-azul);
+    color: var(--db-azul); padding: 10px 5px;
+    font-weight: bold; font-size: 0.8rem; border-radius: 6px;
+    cursor: pointer; text-align: center;
+}
+.btn-grid:hover { background-color: #f0f4f8; }
+
+/* ESTILOS DE LA VENTANA EMERGENTE (MODAL) */
+.desarrollo-modal-backdrop {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Fondo oscurecido */
+    z-index: 5000; /* Encima de todo */
+    display: flex; justify-content: center; align-items: center;
+    opacity: 0; animation: fadeInModal 0.3s ease forwards;
+    padding: 20px; box-sizing: border-box;
 }
 
-.btn-grid:hover, .btn-grid-active {
-    background-color: var(--primary-color);
-    color: white;
+.desarrollo-modal-content {
+    position: relative; /* Para la X de cierre */
+    background: white; border-radius: 12px;
+    width: 95%; max-width: 600px; /* Mismo ancho esquema */
+    max-height: 85%; /* No salir de pantalla */
+    overflow-y: auto; /* Scroll interno si es largo */
+    box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    padding: 25px; box-sizing: border-box;
+    border-left: 8px solid var(--db-granate); /* Estilo Libreta */
+    animation: slideInModal 0.3s ease forwards;
 }
 
-/* Contenedor que ocupa el 100% del ancho */
-.desarrollo-contenidos {
-    width: 100%;
+.modal-titulo {
+    font-size: 1rem; color: var(--db-azul); margin-top: 0;
+    margin-bottom: 1.2rem; padding-right: 35px; /* Espacio para X */
+    border-bottom: 2px solid #eee; padding-bottom: 10px;
+    font-weight: 800; text-transform: uppercase;
 }
 
-.des-content {
-    background: #fdfaf0; /* Color libreta suave */
-    border: 1px solid #d6d1b1;
-    border-left: 4px solid var(--primary-color);
-    padding: 1.5rem;
-    margin-top: 10px;
-    margin-bottom: 15px;
-    border-radius: 6px;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    animation: fadeIn 0.3s ease;
-    color: #333;
+.modal-body {
+    font-size: 0.95rem; line-height: 1.6; color: #333;
 }
+.modal-body p { margin-top: 0; margin-bottom: 1rem; }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* El botón X de cierre en la esquina */
+.desarrollo-modal-close {
+    position: absolute; top: 15px; right: 15px;
+    background: transparent; border: none;
+    color: #bbb; font-size: 2rem; cursor: pointer;
+    line-height: 1; padding: 0; width: 30px; height: 30px;
+    text-align: center; font-weight: bold;
 }
+.desarrollo-modal-close:hover { color: var(--db-granate); }
 
-/* Ajustes responsive para móviles */
-@media (max-width: 600px) {
-    header {
-        flex-direction: column;
-        gap: 1rem;
-        text-align: center;
-    }
-    
-    nav button {
-        margin: 5px;
-    }
-    
-    .notebook-row {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .btn-grid { 
-        flex: 1 1 calc(50% - 10px); /* 2 columnas en móviles */ 
-    }
-}
+@keyframes fadeInModal { to { opacity: 1; } }
+@keyframes slideInModal { from { transform: translateY(20px); } to { transform: translateY(0); } }
+
+/* Limpieza de estilos antiguos desarrollo que ya no sirven */
+.desarrollo-contenidos { display: none !important; }
+.des-content { display: none !important; }
