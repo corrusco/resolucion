@@ -28,7 +28,7 @@ const AppState = {
 function decodificarHTML(html) {
     if (!html) return "";
     
-    // 1. Creamos un elemento temporal para "traducir" las entidades (&lt;, &gt;, etc)
+    // 1. Creamos un elemento temporal para "traducir" las entidades (<, >, etc)
     const txt = document.createElement("textarea");
     txt.innerHTML = html;
     let paso1 = txt.value;
@@ -108,8 +108,11 @@ function procesarFichas(filas) {
     filas.forEach(fila => {
         if(fila.length < 3 || !fila[0]) return;
         const id = fila[0].trim();
+        const categoria = fila[1].trim();
+        const contenido = fila[2].trim();
+
         if (!AppState.supuestos[id]) AppState.supuestos[id] = { id: id };
-        AppState.supuestos[id][fila[1].trim()] = fila[2].trim();
+        AppState.supuestos[id][categoria] = contenido;
     });
 }
 
@@ -124,7 +127,6 @@ function procesarIndice(filas) {
 }
 
 function procesarDesarrollo(filas) {
-    // CORRECCIÓN: No nos saltamos ninguna fila para pillar el punto 1
     filas.forEach((fila) => {
         if (fila.length < 1 || !fila[0].trim()) return; 
         const apartado = fila[0].trim();
@@ -155,15 +157,44 @@ function router(view, param = null) {
     window.scrollTo(0,0);
 }
 
+// CORRECCIÓN: Se han restaurado todos los campos de la ficha principal
 function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
     grid.innerHTML = '';
-    Object.values(AppState.supuestos).sort((a,b) => parseInt(a.id) - parseInt(b.id)).forEach(sup => {
+
+    const supuestosArr = Object.values(AppState.supuestos).sort((a,b) => parseInt(a.id) - parseInt(b.id));
+
+    supuestosArr.forEach(sup => {
         const div = document.createElement('div');
         div.className = 'card-ficha';
         div.onclick = () => router('resolucion', sup.id);
-        div.innerHTML = `<div class="ficha-numero">Supuesto ${sup.id}</div><div class="ficha-dato"><strong>Curso:</strong> ${sup['Área y Curso'] || ''}</div>`;
+        
+        let cardHtml = `<div class="ficha-numero">Supuesto ${sup.id}</div>`;
+
+        // Aquí están de nuevo todos los campos mapeados de tu hoja de Excel
+        const campos = [
+            { l: "Área y Curso", k: ["Área y Curso", "Área"] },
+            { l: "Contexto", k: ["Contexto"] },
+            { l: "Barreras", k: ["Barreras (Diagnóstico)", "Barreras"] },
+            { l: "Tarea", k: ["Tarea Pedida (Tribunal)", "Tarea Pedidada", "Tarea Pedida"] },
+            { l: "Actividad Estrella", k: ["Actividad Estrella"] },
+            { l: "Normativa", k: ["Normativa Específica"] },
+            { l: "Autores", k: ["Autores Clave"] }
+        ];
+
+        campos.forEach(campo => {
+            let valor = "";
+            for (let i = 0; i < campo.k.length; i++) {
+                if (sup[campo.k[i]]) { valor = String(sup[campo.k[i]]); break; }
+            }
+            if (valor) {
+                valor = decodificarHTML(valor); // Limpiamos HTML por si acaso
+                cardHtml += `<div class="ficha-dato" style="margin-bottom:0.8rem;"><strong>${campo.l}:</strong><br><span style="font-size:0.9rem;color:#444;">${valor}</span></div>`;
+            }
+        });
+
+        div.innerHTML = cardHtml;
         grid.appendChild(div);
     });
 }
@@ -261,10 +292,10 @@ function renderResolucion(supuestoId) {
         if (bloques.length > 0) {
             const mainPoint = bloques[0][0];
             if (mainPoint && mainPoint !== currentMainPoint) {
-                contentDiv.innerHTML += `<h2 class="main-point-title">${decodificarHTML(mainPoint)}</h2>`;
+                contentDiv.innerHTML += `<h2 class="main-point-title" style="color:var(--primary-color); border-bottom:3px solid var(--accent-color); padding-bottom:0.5rem; margin-top:3rem;">${decodificarHTML(mainPoint)}</h2>`;
                 currentMainPoint = mainPoint; 
             }
-            let html = `<div class="notebook-wrapper"><h3 class="sub-point-title">${itemIndice.titulo}</h3><div class="notebook-container">`;
+            let html = `<div class="notebook-wrapper"><h3 class="sub-point-title" style="color:var(--primary-color); margin-top:0;">${itemIndice.titulo}</h3><div class="notebook-container">`;
             bloques.forEach(row => {
                 html += `<div class="notebook-row"><div class="notebook-terms">${decodificarHTML(row[3])}</div><div class="notebook-content">${decodificarHTML(row[4] || row[3])}</div></div>`;
             });
@@ -289,7 +320,7 @@ function renderDetalleApartado(idx) {
     if (bloques.length > 0) {
         let html = `<div class="notebook-wrapper"><div class="notebook-container">`;
         bloques.forEach(row => {
-            html += `<div class="notebook-row"><div class="notebook-terms"><span class="badge">Supuestos: ${row[2] || 'Todos'}</span><br>${decodificarHTML(row[3])}</div><div class="notebook-content">${decodificarHTML(row[4] || row[3])}</div></div>`;
+            html += `<div class="notebook-row"><div class="notebook-terms"><span class="badge" style="background:var(--hover-color); padding: 2px 6px; border-radius: 4px; font-size:0.8rem; margin-bottom:5px; display:inline-block;">Supuestos: ${row[2] || 'Todos'}</span><br>${decodificarHTML(row[3])}</div><div class="notebook-content">${decodificarHTML(row[4] || row[3])}</div></div>`;
         });
         contentDiv.innerHTML = html + `</div></div>`;
     }
