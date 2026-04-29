@@ -2,77 +2,46 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oposiciones La Rioja - Gestor de Supuestos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Resolución de Supuestos - La Rioja</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="pantalla-menu" class="container">
+        <header><h1>Estructura de Resolución</h1></header>
+        <div id="grid-indice" class="grid-indice"></div>
+        <div class="header-seccion" style="text-align:center; margin-top:20px;">
+            <button class="btn-grid" style="width: 200px;" onclick="router('desarrollo')">Ver Desarrollo Especial</button>
+        </div>
+    </div>
 
-    <header>
-        <h1>📖 Gestor de Supuestos - La Rioja</h1>
-        <nav>
-            <button onclick="router('home')">Supuestos</button>
-            <button onclick="router('indice')">Índice de Desarrollo</button>
-            <button onclick="router('desarrollo')">Desarrollo</button>
+    <div id="pantalla-visor" class="container hidden">
+        <header id="cabecera-visor">
+            <h1 id="titulo-seccion">Sección</h1>
+        </header>
+        <div id="contenido-cascada" class="cascada-container"></div>
+        <nav class="nav-inferior">
+            <button class="btn-nav" onclick="cambiarSeccion(-1)">◀ Ant.</button>
+            <button class="btn-nav btn-home" onclick="irAlMenu()">ÍNDICE</button>
+            <button class="btn-nav" onclick="cambiarSeccion(1)">Sig. ▶</button>
         </nav>
-    </header>
+    </div>
 
-    <main>
-        <div id="loader">Cargando base de datos desde Google Sheets... Por favor, espera.</div>
+    <div id="view-desarrollo" class="container hidden" style="padding-bottom: 100px;">
+        <header>
+            <h1>Desarrollo Transversal</h1>
+        </header>
+        <div class="header-seccion" style="border:none;">
+            <p class="desc-seccion">Selecciona un número de supuesto para ver el contenido específico de cada apartado unificado.</p>
+        </div>
+        
+        <div id="lista-desarrollo" class="cascada-container">
+            </div>
 
-        <section id="view-home" class="hidden">
-            <div class="header-seccion">
-                <h2>Catálogo de Supuestos Prácticos</h2>
-                <p class="desc-seccion">Selecciona un supuesto para ver su resolución completa.</p>
-            </div>
-            <div id="grid-fichas" class="grid-fichas"></div>
-            <div class="control-buttons" style="justify-content: center; gap: 10px;">
-                <button class="btn-action" onclick="router('indice')">Ver Índice</button>
-                <button class="btn-action" onclick="router('desarrollo')">Ver Desarrollo</button>
-            </div>
-        </section>
-
-        <section id="view-indice" class="hidden">
-            <div class="header-seccion">
-                <h2>Índice de Resolución</h2>
-                <p class="desc-seccion">Selecciona un apartado para estudiarlo de forma transversal.</p>
-            </div>
-            <div id="grid-indice" class="grid-indice"></div>
-            <div class="control-buttons" style="justify-content: center;">
-                <button class="btn-secondary" onclick="router('home')">Volver a Supuestos</button>
-            </div>
-        </section>
-
-        <section id="view-desarrollo" class="hidden">
-            <div class="header-seccion">
-                <h2>Desarrollo por Apartados</h2>
-                <p class="desc-seccion">Consulta el contenido específico de cada supuesto por sección.</p>
-            </div>
-            <div id="lista-desarrollo"></div>
-            <div class="control-buttons">
-                <button class="btn-secondary" onclick="router('home')">Volver a Supuestos</button>
-                <button class="btn-action" onclick="router('indice')">Índice de Desarrollo</button>
-            </div>
-        </section>
-
-        <section id="view-resolucion" class="hidden">
-            <div id="resolucion-header" class="header-seccion"></div>
-            <div id="resolucion-content"></div>
-            <div class="control-buttons">
-                <button class="btn-secondary" onclick="router('home')">Volver a Supuestos</button>
-                <button class="btn-action" onclick="router('indice')">Ver Índice</button>
-            </div>
-        </section>
-
-        <section id="view-detalle-apartado" class="hidden">
-            <div id="detalle-header" class="header-seccion"></div>
-            <div id="detalle-content"></div>
-            <div class="control-buttons">
-                <button class="btn-secondary" onclick="router('indice')">Volver al Índice</button>
-                <button class="btn-action" onclick="nextApartado()">Siguiente Apartado ➡️</button>
-            </div>
-        </section>
-    </main>
+        <nav class="nav-inferior">
+            <button class="btn-nav btn-home" style="flex:1;" onclick="irAlMenu()">VOLVER AL ÍNDICE</button>
+        </nav>
+    </div>
 
     <script src="script.js"></script>
 </body>
