@@ -4,13 +4,9 @@
 const BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVIJ3VfYy2BwRKgZ4bmXR_AXbANpsT31v7qyM1FOECv4GCpg9VEfiBR9557mYDIPXlQV1jeMmh3tgk/pub";
 
 const ENDPOINTS = {
-    // Hoja 7 - Fichas Resumen
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
-    // Hoja 2 - Índice Transversal
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
-    // Hoja 8 - Desarrollo Especial Interactivo
     desarrollo: `${BASE_URL}?gid=1989575496&output=csv`,
-    // Hojas de contenido puro
     p1: `${BASE_URL}?gid=0&output=csv`,
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
@@ -21,7 +17,7 @@ const ENDPOINTS = {
 const AppState = {
     supuestos: {}, 
     indiceMenu: [], 
-    desarrolloData: {}, // Agrupado por Apartado A (Hoja 8)
+    desarrolloData: {}, 
     contenidos: [], 
     currentApartadoIndex: 0 
 };
@@ -55,9 +51,6 @@ function normalizarTexto(txt) {
     return String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
 }
 
-// =========================================
-// MOTOR DE CARGA DE DATOS
-// =========================================
 async function fetchSafe(url) {
     try {
         const res = await fetch(url);
@@ -70,7 +63,6 @@ async function fetchSafe(url) {
 
 async function initApp() {
     try {
-        // Cargar todo en paralelo para ganar velocidad
         const [csvFichas, csvIndice, csvDes, csvP1, csvP2, csvP3, csvP4, csvP5] = await Promise.all([
             fetchSafe(ENDPOINTS.fichas),
             fetchSafe(ENDPOINTS.indice),
@@ -91,7 +83,6 @@ async function initApp() {
             ...parseCSV(csvP4), ...parseCSV(csvP5)
         ];
         
-        // Limpieza de duplicados y filas vacías
         const uniqueContenidos = [];
         const seen = new Set();
         allRows.forEach(row => {
@@ -112,9 +103,6 @@ async function initApp() {
     }
 }
 
-// =========================================
-// PROCESAMIENTO DE DATOS
-// =========================================
 function procesarFichas(filas) {
     filas.forEach(fila => {
         if(fila.length < 3 || !fila[0]) return;
@@ -140,22 +128,18 @@ function procesarIndice(filas) {
     });
 }
 
-// CORRECCIÓN: Ahora lee desde la primera fila para no perder ningún apartado
 function procesarDesarrollo(filas) {
     filas.forEach((fila) => {
-        // Evitamos procesar filas completamente vacías
         if (fila.length < 1 || !fila[0].trim()) return; 
 
         const apartado = fila[0].trim();
         const numSupuesto = fila[1] ? fila[1].trim() : '';
-        // Guardamos el HTML tal cual viene de la Columna C
         const contenidoHTML = fila[2] ? fila[2].trim() : '';
 
         if (!AppState.desarrolloData[apartado]) {
             AppState.desarrolloData[apartado] = { items: [] };
         }
         
-        // Solo guardamos si hay un supuesto y contenido
         if (numSupuesto !== '' || contenidoHTML !== '') {
             AppState.desarrolloData[apartado].items.push({
                 num: numSupuesto,
@@ -186,7 +170,6 @@ function router(view, param = null) {
     else if (view === 'detalle') renderDetalleApartado(param);
 }
 
-// --- VISTA 1: HOME ---
 function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
@@ -227,7 +210,6 @@ function renderHome() {
     });
 }
 
-// --- VISTA 2: ÍNDICE ---
 function renderIndice() {
     document.getElementById('view-indice').classList.remove('hidden');
     const grid = document.getElementById('grid-indice');
@@ -243,7 +225,7 @@ function renderIndice() {
 }
 
 // =========================================
-// NUEVA VISTA 3: DESARROLLO (MODAL INTERACTIVO)
+// NUEVA VISTA 3: DESARROLLO (VENTANA INLINE)
 // =========================================
 function renderDesarrollo() {
     const view = document.getElementById('view-desarrollo');
@@ -251,21 +233,46 @@ function renderDesarrollo() {
     const container = document.getElementById('lista-desarrollo');
     container.innerHTML = '';
 
-    // Generar apartados
     Object.keys(AppState.desarrolloData).forEach((apartado) => {
         const data = AppState.desarrolloData[apartado];
         
         const section = document.createElement('div');
         section.className = 'desarrollo-section';
         
-        // Título del Apartado A Unificado
-        let htmlSection = `<div class="desarrollo-titulo">${apartado}</div>`;
+        // 1. Título del apartado (Usamos innerHTML para interpretar posibles etiquetas HTML de Columna A)
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'desarrollo-titulo';
+        titleDiv.innerHTML = apartado.replace(/\n/g, '<br>'); 
+        section.appendChild(titleDiv);
         
-        // Solo inyectamos rejilla si hay supuestos asociados a este apartado
+        // Solo inyectamos rejilla si hay supuestos (Columnas B y C)
         if (data.items.length > 0) {
-            htmlSection += `<div class="desarrollo-grid">`;
             
-            // Ordenamos los supuestos por número (1, 2, 3...)
+            // Contenedor de los botones (Rejilla)
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'desarrollo-grid';
+            
+            // Contenedor del Visor (Ventana de lectura, oculta por defecto)
+            const visorDiv = document.createElement('div');
+            visorDiv.className = 'desarrollo-visor hidden';
+            
+            // Botón X para cerrar el visor
+            const btnClose = document.createElement('button');
+            btnClose.className = 'btn-cerrar-visor';
+            btnClose.innerHTML = '&times;';
+            btnClose.onclick = () => {
+                visorDiv.classList.add('hidden');
+                gridDiv.classList.remove('hidden'); // Vuelve a mostrar los botones
+            };
+            
+            // Cuerpo del texto del visor
+            const visorContent = document.createElement('div');
+            visorContent.className = 'visor-content';
+            
+            visorDiv.appendChild(btnClose);
+            visorDiv.appendChild(visorContent);
+
+            // Ordenamos los supuestos por número
             data.items.sort((a,b) => parseInt(a.num) - parseInt(b.num));
             
             data.items.forEach((sup) => {
@@ -274,78 +281,30 @@ function renderDesarrollo() {
                 btn.className = 'btn-grid';
                 btn.textContent = btnText;
                 
-                // Al hacer clic, abrimos la ventana emergente centrada (Modal)
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    showModalDesarrollo(apartado, sup.num, sup.html);
+                // Acción al hacer clic en un supuesto
+                btn.onclick = () => {
+                    // Ocultamos botones y mostramos el visor
+                    gridDiv.classList.add('hidden');
+                    visorDiv.classList.remove('hidden');
+                    
+                    // Inyectamos el texto interpretando el HTML y poniendo un pequeño encabezado
+                    visorContent.innerHTML = `
+                        <strong style="color:var(--primary-color); display:block; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
+                            Resolución Supuesto ${btnText}
+                        </strong>
+                        ${sup.html.replace(/\n/g, '<br>')}
+                    `;
                 };
                 
-                const tempDiv = document.createElement('div');
-                tempDiv.className = 'temp-btn-holder'; 
-                tempDiv.appendChild(btn);
-                htmlSection += tempDiv.innerHTML;
+                gridDiv.appendChild(btn);
             });
-            htmlSection += `</div>`;
+            
+            section.appendChild(gridDiv);
+            section.appendChild(visorDiv);
         }
 
-        section.innerHTML = htmlSection;
         container.appendChild(section);
     });
-}
-
-// Función para mostrar la ventana emergente centrada (Modal)
-function showModalDesarrollo(tituloApartado, numSupuesto, contenidoHTML) {
-    // 1. Evitar duplicados (borramos si ya hay una abierta)
-    const existingModal = document.querySelector('.desarrollo-modal-backdrop');
-    if (existingModal) existingModal.remove();
-
-    // 2. Crear el fondo oscurecido
-    const backdrop = document.createElement('div');
-    backdrop.className = 'desarrollo-modal-backdrop';
-    backdrop.onclick = closeModalDesarrollo; // Cierra al pulsar fuera
-
-    // 3. Crear el contenedor del contenido
-    const modalContent = document.createElement('div');
-    modalContent.className = 'desarrollo-modal-content';
-    modalContent.onclick = (e) => e.stopPropagation(); // Evita cerrar al pulsar dentro
-
-    // 4. Crear el botón X de cierre
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'desarrollo-modal-close';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.onclick = closeModalDesarrollo;
-
-    // 5. Crear el título (Apartado + Supuesto)
-    const title = document.createElement('h3');
-    title.className = 'modal-titulo';
-    title.innerHTML = `Supuesto ${numSupuesto || 'Común'} - ${tituloApartado}`;
-
-    // 6. Crear el cuerpo del contenido (Interpretando HTML)
-    const body = document.createElement('div');
-    body.className = 'modal-body';
-    // Reemplazamos saltos de línea por <br> y asignamos el HTML que viene de Google Sheets
-    body.innerHTML = contenidoHTML.replace(/\n/g, '<br>'); 
-
-    // 7. Ensamblar la ventana
-    modalContent.appendChild(closeBtn);
-    modalContent.appendChild(title);
-    modalContent.appendChild(body);
-    backdrop.appendChild(modalContent);
-    document.body.appendChild(backdrop);
-    
-    // Bloquear el scroll del body principal mientras el modal está abierto
-    document.body.style.overflow = 'hidden';
-}
-
-function closeModalDesarrollo() {
-    const backdrop = document.querySelector('.desarrollo-modal-backdrop');
-    if (backdrop) {
-        backdrop.style.opacity = '0'; 
-        setTimeout(() => {
-            backdrop.remove();
-            document.body.style.overflow = ''; // Restaurar scroll
-        }, 300);
-    }
 }
 
 // --- VISTA 4: RESOLUCIÓN ---
@@ -548,7 +507,4 @@ function nextApartado() {
     router('detalle', nextIndex);
 }
 
-// =========================================
-// INICIO
-// =========================================
 window.onload = initApp;
