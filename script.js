@@ -140,15 +140,15 @@ function procesarIndice(filas) {
     });
 }
 
-// CORRECCIÓN: Ahora lee la fila 1 (borrado if index===0)
+// CORRECCIÓN: Ahora lee desde la primera fila para no perder ningún apartado
 function procesarDesarrollo(filas) {
     filas.forEach((fila) => {
-        // Evitamos procesar filas vacías
+        // Evitamos procesar filas completamente vacías
         if (fila.length < 1 || !fila[0].trim()) return; 
 
         const apartado = fila[0].trim();
         const numSupuesto = fila[1] ? fila[1].trim() : '';
-        // CORRECCIÓN: Guardamos el HTML tal cual viene (Columna C)
+        // Guardamos el HTML tal cual viene de la Columna C
         const contenidoHTML = fila[2] ? fila[2].trim() : '';
 
         if (!AppState.desarrolloData[apartado]) {
@@ -251,7 +251,7 @@ function renderDesarrollo() {
     const container = document.getElementById('lista-desarrollo');
     container.innerHTML = '';
 
-    // Ordenar apartados por su aparición en el Excel
+    // Generar apartados
     Object.keys(AppState.desarrolloData).forEach((apartado) => {
         const data = AppState.desarrolloData[apartado];
         
@@ -261,10 +261,11 @@ function renderDesarrollo() {
         // Título del Apartado A Unificado
         let htmlSection = `<div class="desarrollo-titulo">${apartado}</div>`;
         
-        // Solo inyectamos rejilla si hay supuestos (Columnas B y C)
+        // Solo inyectamos rejilla si hay supuestos asociados a este apartado
         if (data.items.length > 0) {
             htmlSection += `<div class="desarrollo-grid">`;
-            // Ordenamos los supuestos por número
+            
+            // Ordenamos los supuestos por número (1, 2, 3...)
             data.items.sort((a,b) => parseInt(a.num) - parseInt(b.num));
             
             data.items.forEach((sup) => {
@@ -273,13 +274,12 @@ function renderDesarrollo() {
                 btn.className = 'btn-grid';
                 btn.textContent = btnText;
                 
-                // CORRECCIÓN: Al hacer clic, abrimos la ventana emergente centrada
+                // Al hacer clic, abrimos la ventana emergente centrada (Modal)
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     showModalDesarrollo(apartado, sup.num, sup.html);
                 };
                 
-                // Inyectamos el botón directamente
                 const tempDiv = document.createElement('div');
                 tempDiv.className = 'temp-btn-holder'; 
                 tempDiv.appendChild(btn);
@@ -302,31 +302,28 @@ function showModalDesarrollo(tituloApartado, numSupuesto, contenidoHTML) {
     // 2. Crear el fondo oscurecido
     const backdrop = document.createElement('div');
     backdrop.className = 'desarrollo-modal-backdrop';
-    // Cerrar al pulsar fuera del contenido
-    backdrop.onclick = closeModalDesarrollo;
+    backdrop.onclick = closeModalDesarrollo; // Cierra al pulsar fuera
 
     // 3. Crear el contenedor del contenido
     const modalContent = document.createElement('div');
     modalContent.className = 'desarrollo-modal-content';
-    // Evitar que pulsar dentro del contenido cierre la ventana
-    modalContent.onclick = (e) => e.stopPropagation();
+    modalContent.onclick = (e) => e.stopPropagation(); // Evita cerrar al pulsar dentro
 
     // 4. Crear el botón X de cierre
     const closeBtn = document.createElement('button');
     closeBtn.className = 'desarrollo-modal-close';
-    closeBtn.innerHTML = '&times;'; // Carácter X grande
+    closeBtn.innerHTML = '&times;';
     closeBtn.onclick = closeModalDesarrollo;
 
     // 5. Crear el título (Apartado + Supuesto)
     const title = document.createElement('h3');
     title.className = 'modal-titulo';
-    // Interpretamos HTML en el título por si acaso
     title.innerHTML = `Supuesto ${numSupuesto || 'Común'} - ${tituloApartado}`;
 
-    // 6. Crear el cuerpo del contenido (Libreta)
+    // 6. Crear el cuerpo del contenido (Interpretando HTML)
     const body = document.createElement('div');
     body.className = 'modal-body';
-    // CORRECCIÓN: Usamos innerHTML para renderizar negritas, colores, etc.
+    // Reemplazamos saltos de línea por <br> y asignamos el HTML que viene de Google Sheets
     body.innerHTML = contenidoHTML.replace(/\n/g, '<br>'); 
 
     // 7. Ensamblar la ventana
@@ -336,18 +333,17 @@ function showModalDesarrollo(tituloApartado, numSupuesto, contenidoHTML) {
     backdrop.appendChild(modalContent);
     document.body.appendChild(backdrop);
     
-    // Bloquear el scroll del body principal
+    // Bloquear el scroll del body principal mientras el modal está abierto
     document.body.style.overflow = 'hidden';
 }
 
 function closeModalDesarrollo() {
     const backdrop = document.querySelector('.desarrollo-modal-backdrop');
     if (backdrop) {
-        backdrop.style.opacity = '0'; // Efecto desaparición
+        backdrop.style.opacity = '0'; 
         setTimeout(() => {
             backdrop.remove();
-            // Restaurar scroll
-            document.body.style.overflow = '';
+            document.body.style.overflow = ''; // Restaurar scroll
         }, 300);
     }
 }
@@ -552,4 +548,7 @@ function nextApartado() {
     router('detalle', nextIndex);
 }
 
+// =========================================
+// INICIO
+// =========================================
 window.onload = initApp;
