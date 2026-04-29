@@ -1,12 +1,9 @@
-// =========================================
-// CONFIGURACIÓN Y URLS
-// =========================================
 const BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVIJ3VfYy2BwRKgZ4bmXR_AXbANpsT31v7qyM1FOECv4GCpg9VEfiBR9557mYDIPXlQV1jeMmh3tgk/pub";
 
 const ENDPOINTS = {
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
-    desarrollo: `${BASE_URL}?gid=1989575496&output=csv`, // Nueva Hoja 8
+    desarrollo: `${BASE_URL}?gid=1989575496&output=csv`, // Hoja 8
     p1: `${BASE_URL}?gid=0&output=csv`,
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
@@ -17,14 +14,11 @@ const ENDPOINTS = {
 const AppState = {
     supuestos: {}, 
     indiceMenu: [], 
-    desarrolloData: {}, // Guardará los datos de la Hoja 8 agrupados
+    desarrolloData: {}, 
     contenidos: [], 
     currentApartadoIndex: 0 
 };
 
-// =========================================
-// PARSER CSV ROBUSTO 
-// =========================================
 function parseCSV(str) {
     if (!str) return [];
     const arr = [];
@@ -51,9 +45,6 @@ function normalizarTexto(txt) {
     return String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
 }
 
-// =========================================
-// MOTOR DE CARGA DE DATOS
-// =========================================
 async function fetchSafe(url) {
     try {
         const res = await fetch(url);
@@ -106,9 +97,6 @@ async function initApp() {
     }
 }
 
-// =========================================
-// PROCESAMIENTO DE DATOS
-// =========================================
 function procesarFichas(filas) {
     filas.forEach(fila => {
         if(fila.length < 3 || !fila[0]) return;
@@ -134,33 +122,33 @@ function procesarIndice(filas) {
     });
 }
 
-// NUEVA FUNCIÓN: Agrupa los datos de la Hoja 8
+// CORRECCIÓN: Ahora lee la fila 1 y no crea rejillas vacías
 function procesarDesarrollo(filas) {
-    filas.forEach((fila, index) => {
-        if (index === 0 || fila.length < 3) return; // Saltar cabecera
-        const apartado = fila[0].trim();
-        const numSupuesto = fila[1].trim();
-        const contenido = fila[2].trim();
+    filas.forEach((fila) => {
+        if (fila.length < 1 || !fila[0].trim()) return; 
 
-        if (!apartado) return;
-        if (!AppState.desarrolloData[apartado]) AppState.desarrolloData[apartado] = [];
+        const apartado = fila[0].trim();
+        const numSupuesto = fila[1] ? fila[1].trim() : '';
+        const contenido = fila[2] ? fila[2].trim() : '';
+
+        if (!AppState.desarrolloData[apartado]) {
+            AppState.desarrolloData[apartado] = { items: [] };
+        }
         
-        AppState.desarrolloData[apartado].push({
-            num: numSupuesto,
-            texto: contenido
-        });
+        // Solo guardamos si hay un supuesto y contenido
+        if (numSupuesto !== '' || contenido !== '') {
+            AppState.desarrolloData[apartado].items.push({
+                num: numSupuesto,
+                texto: contenido
+            });
+        }
     });
 }
 
-// =========================================
-// ENRUTADOR Y RENDERIZADO DE VISTAS
-// =========================================
 function hideAllViews() {
-    document.getElementById('view-home').classList.add('hidden');
-    document.getElementById('view-indice').classList.add('hidden');
-    document.getElementById('view-desarrollo').classList.add('hidden');
-    document.getElementById('view-resolucion').classList.add('hidden');
-    document.getElementById('view-detalle-apartado').classList.add('hidden');
+    ['view-home', 'view-indice', 'view-desarrollo', 'view-resolucion', 'view-detalle-apartado'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
     window.scrollTo(0,0);
 }
 
@@ -173,7 +161,6 @@ function router(view, param = null) {
     else if (view === 'detalle') renderDetalleApartado(param);
 }
 
-// --- VISTA 1: HOME ---
 function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
@@ -214,7 +201,6 @@ function renderHome() {
     });
 }
 
-// --- VISTA 2: ÍNDICE ---
 function renderIndice() {
     document.getElementById('view-indice').classList.remove('hidden');
     const grid = document.getElementById('grid-indice');
@@ -229,7 +215,7 @@ function renderIndice() {
     });
 }
 
-// --- NUEVA VISTA 3: DESARROLLO ---
+// CORRECCIÓN: Separamos los botones del contenido para que ocupe todo el ancho
 function renderDesarrollo() {
     const view = document.getElementById('view-desarrollo');
     view.classList.remove('hidden');
@@ -237,37 +223,61 @@ function renderDesarrollo() {
     container.innerHTML = '';
 
     Object.keys(AppState.desarrolloData).forEach((apartado, idx) => {
+        const data = AppState.desarrolloData[apartado];
+        
         const section = document.createElement('div');
         section.className = 'desarrollo-section';
         
-        let html = `<h3 class="desarrollo-titulo">${apartado}</h3>`;
-        html += `<div class="desarrollo-grid">`;
+        // Uso de innerHTML asegurado para que el apartado renderice las etiquetas
+        let html = `<div class="desarrollo-titulo">${apartado}</div>`;
         
-        AppState.desarrolloData[apartado].forEach((sup, sIdx) => {
-            const uniqueId = `des-${idx}-${sIdx}`;
-            html += `
-                <div class="des-item">
-                    <button class="btn-grid" onclick="toggleDesarrollo('${uniqueId}')">${sup.num}</button>
-                    <div id="${uniqueId}" class="des-content hidden">${sup.texto.replace(/\n/g, '<br>')}</div>
-                </div>`;
-        });
+        // Solo inyectamos rejilla si hay supuestos (Columnas B y C)
+        if (data.items.length > 0) {
+            html += `<div class="desarrollo-grid">`;
+            data.items.forEach((sup, sIdx) => {
+                const uniqueId = `des-${idx}-${sIdx}`;
+                const btnText = sup.num || 'Info';
+                html += `<button class="btn-grid" onclick="toggleDesarrolloContent(this, '${uniqueId}', 'grupo-${idx}')">${btnText}</button>`;
+            });
+            html += `</div>`;
+            
+            // Contenedor full-width para el texto
+            html += `<div class="desarrollo-contenidos" id="grupo-${idx}">`;
+            data.items.forEach((sup, sIdx) => {
+                const uniqueId = `des-${idx}-${sIdx}`;
+                // Reemplazamos \n por <br> y asignamos. Si en el excel había tags, se verán correctamente.
+                const textoFormateado = sup.texto.replace(/\n/g, '<br>');
+                html += `<div id="${uniqueId}" class="des-content hidden">${textoFormateado}</div>`;
+            });
+            html += `</div>`;
+        }
 
-        html += `</div>`;
         section.innerHTML = html;
         container.appendChild(section);
     });
 }
 
-function toggleDesarrollo(id) {
-    const el = document.getElementById(id);
-    if (el.classList.contains('hidden')) {
-        el.classList.remove('hidden');
-    } else {
-        el.classList.add('hidden');
+// Comportamiento tipo acordeón para la rejilla
+function toggleDesarrolloContent(btn, targetId, groupId) {
+    const target = document.getElementById(targetId);
+    const group = document.getElementById(groupId);
+    const isCurrentlyHidden = target.classList.contains('hidden');
+    
+    // Ocultar todos los contenidos de este bloque
+    const allContents = group.querySelectorAll('.des-content');
+    allContents.forEach(c => c.classList.add('hidden'));
+    
+    // Quitar la clase activa de todos los botones de este bloque
+    const allBtns = btn.parentElement.querySelectorAll('.btn-grid');
+    allBtns.forEach(b => b.classList.remove('btn-grid-active'));
+
+    // Si estaba oculto, lo mostramos y activamos el botón
+    if (isCurrentlyHidden) {
+        target.classList.remove('hidden');
+        btn.classList.add('btn-grid-active');
     }
 }
 
-// --- VISTA 4: RESOLUCIÓN ---
 function renderResolucion(supuestoId) {
     document.getElementById('view-resolucion').classList.remove('hidden');
     const sup = AppState.supuestos[supuestoId];
@@ -364,7 +374,6 @@ function renderResolucion(supuestoId) {
     });
 }
 
-// --- VISTA 5: DETALLE APARTADO ---
 function renderDetalleApartado(indexIndice) {
     document.getElementById('view-detalle-apartado').classList.remove('hidden');
     AppState.currentApartadoIndex = indexIndice;
@@ -468,7 +477,4 @@ function nextApartado() {
     router('detalle', nextIndex);
 }
 
-// =========================================
-// INICIO
-// =========================================
 window.onload = initApp;
