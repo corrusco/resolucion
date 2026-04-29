@@ -1,9 +1,16 @@
+// =========================================
+// CONFIGURACIÓN Y URLS
+// =========================================
 const BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVIJ3VfYy2BwRKgZ4bmXR_AXbANpsT31v7qyM1FOECv4GCpg9VEfiBR9557mYDIPXlQV1jeMmh3tgk/pub";
 
 const ENDPOINTS = {
+    // Hoja 7 - Fichas Resumen
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
+    // Hoja 2 - Índice Transversal
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
-    desarrollo: `${BASE_URL}?gid=1989575496&output=csv`, // Hoja 8
+    // Hoja 8 - Desarrollo Especial Interactivo
+    desarrollo: `${BASE_URL}?gid=1989575496&output=csv`,
+    // Hojas de contenido puro
     p1: `${BASE_URL}?gid=0&output=csv`,
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
@@ -14,11 +21,14 @@ const ENDPOINTS = {
 const AppState = {
     supuestos: {}, 
     indiceMenu: [], 
-    desarrolloData: {}, 
+    desarrolloData: {}, // Agrupado por Apartado A (Hoja 8)
     contenidos: [], 
     currentApartadoIndex: 0 
 };
 
+// =========================================
+// PARSER CSV ROBUSTO 
+// =========================================
 function parseCSV(str) {
     if (!str) return [];
     const arr = [];
@@ -45,6 +55,9 @@ function normalizarTexto(txt) {
     return String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
 }
 
+// =========================================
+// MOTOR DE CARGA DE DATOS
+// =========================================
 async function fetchSafe(url) {
     try {
         const res = await fetch(url);
@@ -57,6 +70,7 @@ async function fetchSafe(url) {
 
 async function initApp() {
     try {
+        // Cargar todo en paralelo para ganar velocidad
         const [csvFichas, csvIndice, csvDes, csvP1, csvP2, csvP3, csvP4, csvP5] = await Promise.all([
             fetchSafe(ENDPOINTS.fichas),
             fetchSafe(ENDPOINTS.indice),
@@ -77,6 +91,7 @@ async function initApp() {
             ...parseCSV(csvP4), ...parseCSV(csvP5)
         ];
         
+        // Limpieza de duplicados y filas vacías
         const uniqueContenidos = [];
         const seen = new Set();
         allRows.forEach(row => {
@@ -97,6 +112,9 @@ async function initApp() {
     }
 }
 
+// =========================================
+// PROCESAMIENTO DE DATOS
+// =========================================
 function procesarFichas(filas) {
     filas.forEach(fila => {
         if(fila.length < 3 || !fila[0]) return;
@@ -122,33 +140,40 @@ function procesarIndice(filas) {
     });
 }
 
-// CORRECCIÓN: Ahora lee la fila 1 y no crea rejillas vacías
+// CORRECCIÓN: Ahora lee la fila 1 (borrado if index===0)
 function procesarDesarrollo(filas) {
     filas.forEach((fila) => {
+        // Evitamos procesar filas vacías
         if (fila.length < 1 || !fila[0].trim()) return; 
 
         const apartado = fila[0].trim();
         const numSupuesto = fila[1] ? fila[1].trim() : '';
-        const contenido = fila[2] ? fila[2].trim() : '';
+        // CORRECCIÓN: Guardamos el HTML tal cual viene (Columna C)
+        const contenidoHTML = fila[2] ? fila[2].trim() : '';
 
         if (!AppState.desarrolloData[apartado]) {
             AppState.desarrolloData[apartado] = { items: [] };
         }
         
         // Solo guardamos si hay un supuesto y contenido
-        if (numSupuesto !== '' || contenido !== '') {
+        if (numSupuesto !== '' || contenidoHTML !== '') {
             AppState.desarrolloData[apartado].items.push({
                 num: numSupuesto,
-                texto: contenido
+                html: contenidoHTML
             });
         }
     });
 }
 
+// =========================================
+// ENRUTADOR Y RENDERIZADO DE VISTAS
+// =========================================
 function hideAllViews() {
-    ['view-home', 'view-indice', 'view-desarrollo', 'view-resolucion', 'view-detalle-apartado'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-    });
+    document.getElementById('view-home').classList.add('hidden');
+    document.getElementById('view-indice').classList.add('hidden');
+    document.getElementById('view-desarrollo').classList.add('hidden');
+    document.getElementById('view-resolucion').classList.add('hidden');
+    document.getElementById('view-detalle-apartado').classList.add('hidden');
     window.scrollTo(0,0);
 }
 
@@ -161,6 +186,7 @@ function router(view, param = null) {
     else if (view === 'detalle') renderDetalleApartado(param);
 }
 
+// --- VISTA 1: HOME ---
 function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
@@ -201,6 +227,7 @@ function renderHome() {
     });
 }
 
+// --- VISTA 2: ÍNDICE ---
 function renderIndice() {
     document.getElementById('view-indice').classList.remove('hidden');
     const grid = document.getElementById('grid-indice');
@@ -215,69 +242,117 @@ function renderIndice() {
     });
 }
 
-// CORRECCIÓN: Separamos los botones del contenido para que ocupe todo el ancho
+// =========================================
+// NUEVA VISTA 3: DESARROLLO (MODAL INTERACTIVO)
+// =========================================
 function renderDesarrollo() {
     const view = document.getElementById('view-desarrollo');
     view.classList.remove('hidden');
     const container = document.getElementById('lista-desarrollo');
     container.innerHTML = '';
 
-    Object.keys(AppState.desarrolloData).forEach((apartado, idx) => {
+    // Ordenar apartados por su aparición en el Excel
+    Object.keys(AppState.desarrolloData).forEach((apartado) => {
         const data = AppState.desarrolloData[apartado];
         
         const section = document.createElement('div');
         section.className = 'desarrollo-section';
         
-        // Uso de innerHTML asegurado para que el apartado renderice las etiquetas
-        let html = `<div class="desarrollo-titulo">${apartado}</div>`;
+        // Título del Apartado A Unificado
+        let htmlSection = `<div class="desarrollo-titulo">${apartado}</div>`;
         
         // Solo inyectamos rejilla si hay supuestos (Columnas B y C)
         if (data.items.length > 0) {
-            html += `<div class="desarrollo-grid">`;
-            data.items.forEach((sup, sIdx) => {
-                const uniqueId = `des-${idx}-${sIdx}`;
-                const btnText = sup.num || 'Info';
-                html += `<button class="btn-grid" onclick="toggleDesarrolloContent(this, '${uniqueId}', 'grupo-${idx}')">${btnText}</button>`;
-            });
-            html += `</div>`;
+            htmlSection += `<div class="desarrollo-grid">`;
+            // Ordenamos los supuestos por número
+            data.items.sort((a,b) => parseInt(a.num) - parseInt(b.num));
             
-            // Contenedor full-width para el texto
-            html += `<div class="desarrollo-contenidos" id="grupo-${idx}">`;
-            data.items.forEach((sup, sIdx) => {
-                const uniqueId = `des-${idx}-${sIdx}`;
-                // Reemplazamos \n por <br> y asignamos. Si en el excel había tags, se verán correctamente.
-                const textoFormateado = sup.texto.replace(/\n/g, '<br>');
-                html += `<div id="${uniqueId}" class="des-content hidden">${textoFormateado}</div>`;
+            data.items.forEach((sup) => {
+                const btnText = sup.num || 'Info';
+                const btn = document.createElement('button');
+                btn.className = 'btn-grid';
+                btn.textContent = btnText;
+                
+                // CORRECCIÓN: Al hacer clic, abrimos la ventana emergente centrada
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    showModalDesarrollo(apartado, sup.num, sup.html);
+                };
+                
+                // Inyectamos el botón directamente
+                const tempDiv = document.createElement('div');
+                tempDiv.className = 'temp-btn-holder'; 
+                tempDiv.appendChild(btn);
+                htmlSection += tempDiv.innerHTML;
             });
-            html += `</div>`;
+            htmlSection += `</div>`;
         }
 
-        section.innerHTML = html;
+        section.innerHTML = htmlSection;
         container.appendChild(section);
     });
 }
 
-// Comportamiento tipo acordeón para la rejilla
-function toggleDesarrolloContent(btn, targetId, groupId) {
-    const target = document.getElementById(targetId);
-    const group = document.getElementById(groupId);
-    const isCurrentlyHidden = target.classList.contains('hidden');
-    
-    // Ocultar todos los contenidos de este bloque
-    const allContents = group.querySelectorAll('.des-content');
-    allContents.forEach(c => c.classList.add('hidden'));
-    
-    // Quitar la clase activa de todos los botones de este bloque
-    const allBtns = btn.parentElement.querySelectorAll('.btn-grid');
-    allBtns.forEach(b => b.classList.remove('btn-grid-active'));
+// Función para mostrar la ventana emergente centrada (Modal)
+function showModalDesarrollo(tituloApartado, numSupuesto, contenidoHTML) {
+    // 1. Evitar duplicados (borramos si ya hay una abierta)
+    const existingModal = document.querySelector('.desarrollo-modal-backdrop');
+    if (existingModal) existingModal.remove();
 
-    // Si estaba oculto, lo mostramos y activamos el botón
-    if (isCurrentlyHidden) {
-        target.classList.remove('hidden');
-        btn.classList.add('btn-grid-active');
+    // 2. Crear el fondo oscurecido
+    const backdrop = document.createElement('div');
+    backdrop.className = 'desarrollo-modal-backdrop';
+    // Cerrar al pulsar fuera del contenido
+    backdrop.onclick = closeModalDesarrollo;
+
+    // 3. Crear el contenedor del contenido
+    const modalContent = document.createElement('div');
+    modalContent.className = 'desarrollo-modal-content';
+    // Evitar que pulsar dentro del contenido cierre la ventana
+    modalContent.onclick = (e) => e.stopPropagation();
+
+    // 4. Crear el botón X de cierre
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'desarrollo-modal-close';
+    closeBtn.innerHTML = '&times;'; // Carácter X grande
+    closeBtn.onclick = closeModalDesarrollo;
+
+    // 5. Crear el título (Apartado + Supuesto)
+    const title = document.createElement('h3');
+    title.className = 'modal-titulo';
+    // Interpretamos HTML en el título por si acaso
+    title.innerHTML = `Supuesto ${numSupuesto || 'Común'} - ${tituloApartado}`;
+
+    // 6. Crear el cuerpo del contenido (Libreta)
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    // CORRECCIÓN: Usamos innerHTML para renderizar negritas, colores, etc.
+    body.innerHTML = contenidoHTML.replace(/\n/g, '<br>'); 
+
+    // 7. Ensamblar la ventana
+    modalContent.appendChild(closeBtn);
+    modalContent.appendChild(title);
+    modalContent.appendChild(body);
+    backdrop.appendChild(modalContent);
+    document.body.appendChild(backdrop);
+    
+    // Bloquear el scroll del body principal
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModalDesarrollo() {
+    const backdrop = document.querySelector('.desarrollo-modal-backdrop');
+    if (backdrop) {
+        backdrop.style.opacity = '0'; // Efecto desaparición
+        setTimeout(() => {
+            backdrop.remove();
+            // Restaurar scroll
+            document.body.style.overflow = '';
+        }, 300);
     }
 }
 
+// --- VISTA 4: RESOLUCIÓN ---
 function renderResolucion(supuestoId) {
     document.getElementById('view-resolucion').classList.remove('hidden');
     const sup = AppState.supuestos[supuestoId];
