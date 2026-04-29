@@ -6,7 +6,7 @@ const BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVIJ3VfYy2BwR
 const ENDPOINTS = {
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
-    desarrollo: `${BASE_URL}?gid=1989575496&output=csv`,
+    desarrollo: `${BASE_URL}?gid=1989575496&output=csv`, // Hoja 8
     p1: `${BASE_URL}?gid=0&output=csv`,
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
@@ -23,7 +23,7 @@ const AppState = {
 };
 
 // =========================================
-// PARSER CSV ROBUSTO 
+// PARSER CSV Y HERRAMIENTAS
 // =========================================
 function parseCSV(str) {
     if (!str) return [];
@@ -51,6 +51,21 @@ function normalizarTexto(txt) {
     return String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
 }
 
+// NUEVA FUNCIÓN MÁGICA: Fuerza la interpretación del HTML oculto por Google Sheets
+function decodificarHTML(html) {
+    if (!html) return '';
+    const txt = document.createElement("textarea");
+    txt.innerHTML = html;
+    let result = txt.value;
+    // Si viene doblemente codificado, le damos una segunda pasada
+    if (result.includes('&lt;') || result.includes('&quot;')) {
+        txt.innerHTML = result;
+        result = txt.value;
+    }
+    // Convertimos los saltos de línea del Excel en saltos de línea web (<br>)
+    return result.replace(/\n/g, '<br>');
+}
+
 async function fetchSafe(url) {
     try {
         const res = await fetch(url);
@@ -61,6 +76,9 @@ async function fetchSafe(url) {
     }
 }
 
+// =========================================
+// INICIALIZACIÓN Y PROCESAMIENTO
+// =========================================
 async function initApp() {
     try {
         const [csvFichas, csvIndice, csvDes, csvP1, csvP2, csvP3, csvP4, csvP5] = await Promise.all([
@@ -131,7 +149,6 @@ function procesarIndice(filas) {
 function procesarDesarrollo(filas) {
     filas.forEach((fila) => {
         if (fila.length < 1 || !fila[0].trim()) return; 
-
         const apartado = fila[0].trim();
         const numSupuesto = fila[1] ? fila[1].trim() : '';
         const contenidoHTML = fila[2] ? fila[2].trim() : '';
@@ -150,7 +167,7 @@ function procesarDesarrollo(filas) {
 }
 
 // =========================================
-// ENRUTADOR Y RENDERIZADO DE VISTAS
+// ENRUTADOR Y RENDERIZADO
 // =========================================
 function hideAllViews() {
     document.getElementById('view-home').classList.add('hidden');
@@ -174,7 +191,6 @@ function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
     grid.innerHTML = '';
-
     const supuestosArr = Object.values(AppState.supuestos).sort((a,b) => parseInt(a.id) - parseInt(b.id));
 
     supuestosArr.forEach(sup => {
@@ -183,7 +199,6 @@ function renderHome() {
         div.onclick = () => router('resolucion', sup.id);
         
         let cardHtml = `<div class="ficha-numero">Supuesto ${sup.id}</div>`;
-
         const campos = [
             { l: "Área y Curso", k: ["Área y Curso", "Área"] },
             { l: "Contexto", k: ["Contexto"] },
@@ -200,11 +215,10 @@ function renderHome() {
                 if (sup[campo.k[i]]) { valor = String(sup[campo.k[i]]); break; }
             }
             if (valor) {
-                valor = valor.replace(/\n/g, '<br>');
+                valor = decodificarHTML(valor);
                 cardHtml += `<div class="ficha-dato" style="margin-bottom:0.8rem;"><strong>${campo.l}:</strong><br><span style="font-size:0.9rem;color:#444;">${valor}</span></div>`;
             }
         });
-
         div.innerHTML = cardHtml;
         grid.appendChild(div);
     });
@@ -214,7 +228,6 @@ function renderIndice() {
     document.getElementById('view-indice').classList.remove('hidden');
     const grid = document.getElementById('grid-indice');
     grid.innerHTML = '';
-
     AppState.indiceMenu.forEach((item, index) => {
         const btn = document.createElement('button');
         btn.className = 'btn-indice';
@@ -225,7 +238,7 @@ function renderIndice() {
 }
 
 // =========================================
-// NUEVA VISTA 3: DESARROLLO (VENTANA INLINE)
+// VISTA: DESARROLLO (VISOR INTEGRADO Y DECODIFICADO)
 // =========================================
 function renderDesarrollo() {
     const view = document.getElementById('view-desarrollo');
@@ -239,40 +252,37 @@ function renderDesarrollo() {
         const section = document.createElement('div');
         section.className = 'desarrollo-section';
         
-        // 1. Título del apartado (Usamos innerHTML para interpretar posibles etiquetas HTML de Columna A)
+        // Aplicamos decodificarHTML al título (Columna A)
         const titleDiv = document.createElement('div');
         titleDiv.className = 'desarrollo-titulo';
-        titleDiv.innerHTML = apartado.replace(/\n/g, '<br>'); 
+        titleDiv.innerHTML = decodificarHTML(apartado);
         section.appendChild(titleDiv);
         
-        // Solo inyectamos rejilla si hay supuestos (Columnas B y C)
         if (data.items.length > 0) {
-            
-            // Contenedor de los botones (Rejilla)
+            // Contenedor de los botones
             const gridDiv = document.createElement('div');
             gridDiv.className = 'desarrollo-grid';
             
-            // Contenedor del Visor (Ventana de lectura, oculta por defecto)
+            // Contenedor del visor de texto (Oculto inicialmente)
             const visorDiv = document.createElement('div');
             visorDiv.className = 'desarrollo-visor hidden';
             
-            // Botón X para cerrar el visor
+            // Botón X para cerrar
             const btnClose = document.createElement('button');
             btnClose.className = 'btn-cerrar-visor';
             btnClose.innerHTML = '&times;';
             btnClose.onclick = () => {
-                visorDiv.classList.add('hidden');
-                gridDiv.classList.remove('hidden'); // Vuelve a mostrar los botones
+                visorDiv.classList.add('hidden'); // Ocultar visor
+                gridDiv.classList.remove('hidden'); // Mostrar botones
             };
             
-            // Cuerpo del texto del visor
             const visorContent = document.createElement('div');
             visorContent.className = 'visor-content';
             
             visorDiv.appendChild(btnClose);
             visorDiv.appendChild(visorContent);
 
-            // Ordenamos los supuestos por número
+            // Ordenar numéricamente los botones
             data.items.sort((a,b) => parseInt(a.num) - parseInt(b.num));
             
             data.items.forEach((sup) => {
@@ -281,33 +291,29 @@ function renderDesarrollo() {
                 btn.className = 'btn-grid';
                 btn.textContent = btnText;
                 
-                // Acción al hacer clic en un supuesto
+                // Acción al pulsar el botón: Tapar botones, mostrar texto y DECODIFICAR HTML
                 btn.onclick = () => {
-                    // Ocultamos botones y mostramos el visor
                     gridDiv.classList.add('hidden');
                     visorDiv.classList.remove('hidden');
                     
-                    // Inyectamos el texto interpretando el HTML y poniendo un pequeño encabezado
                     visorContent.innerHTML = `
                         <strong style="color:var(--primary-color); display:block; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
                             Resolución Supuesto ${btnText}
                         </strong>
-                        ${sup.html.replace(/\n/g, '<br>')}
+                        ${decodificarHTML(sup.html)}
                     `;
                 };
-                
                 gridDiv.appendChild(btn);
             });
             
             section.appendChild(gridDiv);
             section.appendChild(visorDiv);
         }
-
         container.appendChild(section);
     });
 }
 
-// --- VISTA 4: RESOLUCIÓN ---
+// --- VISTA: RESOLUCIÓN Y DETALLE (Con decodificador aplicado por seguridad) ---
 function renderResolucion(supuestoId) {
     document.getElementById('view-resolucion').classList.remove('hidden');
     const sup = AppState.supuestos[supuestoId];
@@ -316,7 +322,7 @@ function renderResolucion(supuestoId) {
     const area = sup['Área y Curso'] || sup['Área'] || '';
     const contexto = sup['Contexto'] || '';
     if(area || contexto) {
-        headerHtml += `<p class="desc-seccion">${area} - ${contexto}</p>`;
+        headerHtml += `<p class="desc-seccion">${decodificarHTML(area)} - ${decodificarHTML(contexto)}</p>`;
     }
     document.getElementById('resolucion-header').innerHTML = headerHtml;
 
@@ -327,13 +333,11 @@ function renderResolucion(supuestoId) {
 
     AppState.indiceMenu.forEach(itemIndice => {
         const normTituloIndice = normalizarTexto(itemIndice.titulo);
-        
         const bloquesEncontrados = AppState.contenidos.filter(row => {
             if (row.length < 2) return false;
             const mainPunto = row[0] ? String(row[0]).trim() : '';
             const subPunto = row[1] ? String(row[1]).trim() : '';
             const supuestosStr = row[2] ? String(row[2]).trim().toLowerCase() : '';
-            
             const targetPunto = subPunto !== '' ? subPunto : mainPunto;
             const normTarget = normalizarTexto(targetPunto);
             
@@ -341,7 +345,6 @@ function renderResolucion(supuestoId) {
             if (normTarget !== '' && (normTarget.includes(normTituloIndice) || normTituloIndice.includes(normTarget))) {
                 matchTitulo = true;
             }
-
             if (matchTitulo) {
                 if (supuestosStr === "" || supuestosStr.includes("todo")) return true;
                 const regex = /\d+/g;
@@ -357,39 +360,33 @@ function renderResolucion(supuestoId) {
 
         if (bloquesEncontrados.length > 0) {
             let htmlBloque = "";
-
             const mainPoint = bloquesEncontrados[0][0] ? String(bloquesEncontrados[0][0]).trim() : "";
             const subPoint = bloquesEncontrados[0][1] ? String(bloquesEncontrados[0][1]).trim() : "";
 
             if (mainPoint && mainPoint !== currentMainPoint) {
                 htmlBloque += `
                     <h2 style="color: var(--primary-color); border-bottom: 3px solid var(--accent-color); padding-bottom: 0.5rem; margin-top: 3rem; margin-bottom: 1.5rem; font-size: 2rem;">
-                        ${mainPoint}
+                        ${decodificarHTML(mainPoint)}
                     </h2>`;
                 currentMainPoint = mainPoint; 
             }
 
             htmlBloque += `<div class="notebook-wrapper">`;
-            
             if (subPoint !== "") {
                 htmlBloque += `<h3 style="color: var(--primary-color); margin-top:0;">${itemIndice.titulo}</h3>`;
             }
-
             if (itemIndice.desc) {
                 htmlBloque += `<p class="desc-seccion" style="font-size:0.9rem; margin-bottom: 1rem;">${itemIndice.desc}</p>`;
             }
-            
             htmlBloque += `<div class="notebook-container">`;
 
             bloquesEncontrados.forEach(row => {
-                let terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
-                let textoHtml = row[4] ? String(row[4]) : '';
-                
+                let terminos = row[3] ? decodificarHTML(String(row[3])) : '';
+                let textoHtml = row[4] ? decodificarHTML(String(row[4])) : '';
                 if (!textoHtml && terminos) {
                     textoHtml = terminos;
                     terminos = "Contenido";
                 }
-
                 htmlBloque += `
                     <div class="notebook-row">
                         <div class="notebook-terms">${terminos}</div>
@@ -397,7 +394,6 @@ function renderResolucion(supuestoId) {
                     </div>
                 `;
             });
-
             htmlBloque += `</div></div>`;
             contentDiv.innerHTML += htmlBloque;
         }
@@ -415,10 +411,9 @@ function renderDetalleApartado(indexIndice) {
         <p class="desc-seccion">${item.desc}</p>
     `;
     if (item.justificacion) {
-        headerHtml += `<div class="justificacion-seccion"><strong>Estrategia de Ordenación:</strong><br> ${item.justificacion.replace(/\n/g, '<br>')}</div>`;
+        headerHtml += `<div class="justificacion-seccion"><strong>Estrategia de Ordenación:</strong><br> ${decodificarHTML(item.justificacion)}</div>`;
     }
     document.getElementById('detalle-header').innerHTML = headerHtml;
-
     const contentDiv = document.getElementById('detalle-content');
     contentDiv.innerHTML = '';
 
@@ -435,21 +430,17 @@ function renderDetalleApartado(indexIndice) {
         if (row.length < 2) return false;
         const mainPunto = row[0] ? String(row[0]).trim() : '';
         const subPunto = row[1] ? String(row[1]).trim() : '';
-        
         const targetPunto = subPunto !== '' ? subPunto : mainPunto;
         const normTarget = normalizarTexto(targetPunto);
-        
         return normTarget !== '' && (normTarget.includes(normTituloIndice) || normTituloIndice.includes(normTarget));
     });
     
     let bloquesMostrados = [];
-
     if (ordenIds.length > 0) {
         ordenIds.forEach(id => {
             const bloqueParaId = bloques.find(row => {
                 const supuestosStr = row[2] ? String(row[2]).trim().toLowerCase() : '';
                 if (supuestosStr === "" || supuestosStr.includes("todo")) return true;
-                
                 const regex = /\d+/g;
                 let match;
                 const idsArray = [];
@@ -458,7 +449,6 @@ function renderDetalleApartado(indexIndice) {
                 }
                 return idsArray.includes(id);
             });
-            
             if (bloqueParaId && !bloquesMostrados.includes(bloqueParaId)) {
                  bloquesMostrados.push({ id: id, data: bloqueParaId });
             }
@@ -469,12 +459,11 @@ function renderDetalleApartado(indexIndice) {
 
     if (bloquesMostrados.length > 0) {
         let htmlBloque = `<div class="notebook-wrapper"><div class="notebook-container">`;
-
         bloquesMostrados.forEach(itemInfo => {
             const row = itemInfo.data;
             const supuestosRef = itemInfo.id || row[2] || "Bloque Fijo"; 
-            let terminos = row[3] ? String(row[3]).replace(/\n/g, '<br>') : '';
-            let textoHtml = row[4] ? String(row[4]) : '';
+            let terminos = row[3] ? decodificarHTML(String(row[3])) : '';
+            let textoHtml = row[4] ? decodificarHTML(String(row[4])) : '';
             
             if (!textoHtml && terminos) {
                 textoHtml = terminos;
@@ -491,7 +480,6 @@ function renderDetalleApartado(indexIndice) {
                 </div>
             `;
         });
-
         htmlBloque += `</div></div>`;
         contentDiv.innerHTML = htmlBloque;
     } else {
