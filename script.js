@@ -81,11 +81,13 @@ async function initApp() {
         procesarBarreras(parseCSV(csvBarr));
         procesarCurriculo(parseCSV(csvCurr));
         
-        // Uso de procesarGenerico indicando: DB, Col Agrupadora, Col Titulo, Columnas de Datos, OmitirFila1
-        procesarGenerico(parseCSV(csvMetod), AppState.db_metodologia, 1, 2, [3,4], true); 
-        procesarGenerico(parseCSV(csvActiv), AppState.db_actividades, 1, 2, [3,4,5,6], true); 
+        // Uso de procesadores inteligentes según si tienen cabeceras por sección o no
+        procesarConCabecerasPropias(parseCSV(csvMetod), AppState.db_metodologia, 1, 2, [3,4]); 
+        procesarConCabecerasPropias(parseCSV(csvActiv), AppState.db_actividades, 1, 2, [3,4,5,6]); 
+        
         procesarGenerico(parseCSV(csvMedidas), AppState.db_medidas, 2, null, [3,4], true); 
         procesarGenerico(parseCSV(csvInstru), AppState.db_instrumentos, 2, null, [3,4], true); 
+        
         procesarBibliografia(parseCSV(csvBiblio));
 
         const allRows = [...parseCSV(csvP1), ...parseCSV(csvP2), ...parseCSV(csvP3), ...parseCSV(csvP4), ...parseCSV(csvP5)];
@@ -99,20 +101,18 @@ async function initApp() {
 }
 
 // =========================================
-// FUNCIONES DE PROCESAMIENTO CON MEMORIA (CELDAS COMBINADAS)
+// FUNCIONES DE PROCESAMIENTO (DATA PARSING)
 // =========================================
 function procesarFichas(filas) { filas.forEach(f => { if(f.length<3||!f[0])return; const id=f[0].trim(); if(!AppState.supuestos[id])AppState.supuestos[id]={id:id}; AppState.supuestos[id][f[1].trim()]=f[2].trim(); });}
 function procesarIndice(filas) { filas.forEach((f,i) => { if(f.length<1||!f[0])return; AppState.indiceMenu.push({titulo:f[0].trim(), desc:f[1]?f[1].trim():'', orden:f[2]?f[2].trim():'', justificacion:f[3]?f[3].trim():''}); });}
 function procesarDesarrollo(filas) { filas.forEach(f => { if(f.length<1||!f[0].trim())return; const ap=f[0].trim(); if(!AppState.desarrolloData[ap])AppState.desarrolloData[ap]={items:[]}; if((f[1]&&f[1].trim())||(f[2]&&f[2].trim())) AppState.desarrolloData[ap].items.push({num:f[1]?f[1].trim():'', html:f[2]?f[2].trim():''}); });}
 
 function procesarContexto(filas) {
-    AppState.db_contexto = {};
-    let lastSec = "Contexto Genérico";
+    AppState.db_contexto = {}; let lastSec = "Contexto Genérico";
     filas.forEach((f, i) => {
         if (i===0) return; 
-        if (f[2] && f[2].trim()) lastSec = f[2].trim(); // Actualiza memoria si hay dato
-        if (!f[3] || !f[3].trim()) return; // Si no hay título, salta la fila
-        
+        if (f[2] && f[2].trim()) lastSec = f[2].trim(); 
+        if (!f[3] || !f[3].trim()) return; 
         if (!AppState.db_contexto[lastSec]) AppState.db_contexto[lastSec] = [];
         AppState.db_contexto[lastSec].push({ t: f[3]?f[3].trim():'', p: f[4]?f[4].trim():'', c: f[5]?f[5].trim():'' });
     });
@@ -122,62 +122,83 @@ function procesarBarreras(filas) {
     AppState.db_barreras = [];
     if(filas.length > 0) AppState.cabecerasBarreras = filas[0]; 
     filas.forEach((f, i) => {
-        if (i===0 || !f[1] || !f[1].trim()) return; // La Col B es obligatoria
+        if (i===0 || !f[1] || !f[1].trim()) return; 
         AppState.db_barreras.push(f); 
     });
 }
 
 function procesarCurriculo(filas) {
-    AppState.db_curriculo = {};
-    let lastSec = "Área Curricular";
+    AppState.db_curriculo = {}; let lastSec = "Área Curricular";
     filas.forEach((f, i) => {
         if (i===0) return;
         if (f[2] && f[2].trim()) lastSec = f[2].trim(); 
-        
-        if (!f[3] || !f[3].trim()) return; // Col D debe existir (Competencia)
-        
+        if (!f[3] || !f[3].trim()) return; 
         if (!AppState.db_curriculo[lastSec]) AppState.db_curriculo[lastSec] = [];
-        AppState.db_curriculo[lastSec].push({
-            comp: f[3]?f[3].trim():'', def: f[4]?f[4].trim():'', 
-            sab: f[5]?f[5].trim():'', crit: f[6]?f[6].trim():'', inst: f[7]?f[7].trim():''
-        });
+        AppState.db_curriculo[lastSec].push({ comp: f[3]?f[3].trim():'', def: f[4]?f[4].trim():'', sab: f[5]?f[5].trim():'', crit: f[6]?f[6].trim():'', inst: f[7]?f[7].trim():'' });
     });
 }
 
-function procesarBibliografia(filas) {
-    AppState.db_bibliografia = {};
-    let lastSec = "Normativa";
+// PROCESADOR INTELIGENTE (Metodología y Actividades): Convierte la fila 1 de cada bloque en etiquetas
+function procesarConCabecerasPropias(filas, db, agruparIndex, tituloIndex, dataIndexes) {
+    let lastGroup = null;
     filas.forEach((f, i) => {
-        if (i===0) return;
-        if (f[1] && f[1].trim()) lastSec = f[1].trim(); 
+        if (i === 0 && (!f[agruparIndex] || !f[agruparIndex].trim())) return; 
         
-        if (!f[2] || !f[2].trim()) return; // Col C (Título del documento) debe existir
-        
-        if (!AppState.db_bibliografia[lastSec]) AppState.db_bibliografia[lastSec] = [];
-        AppState.db_bibliografia[lastSec].push(f);
+        let isHeaderRow = false;
+        if (f[agruparIndex] && f[agruparIndex].trim()) {
+            lastGroup = f[agruparIndex].trim();
+            if (!db[lastGroup]) {
+                db[lastGroup] = { headers: {}, items: [] };
+                isHeaderRow = true; // La primera fila donde se define el grupo, asumimos que tiene los títulos
+            }
+        }
+        if (!lastGroup) return;
+
+        if (isHeaderRow) {
+            db[lastGroup].headers.t = tituloIndex !== null ? f[tituloIndex].trim() : "";
+            db[lastGroup].headers.d = dataIndexes.map(idx => f[idx] ? f[idx].trim() : "");
+        } else {
+            const checkIndex = tituloIndex !== null ? tituloIndex : dataIndexes[0];
+            if (!f[checkIndex] || !f[checkIndex].trim()) return; // Fila vacía
+            let obj = { t: tituloIndex !== null ? f[tituloIndex].trim() : "", d: [] };
+            dataIndexes.forEach(idx => { obj.d.push(f[idx] ? f[idx].trim() : ""); });
+            db[lastGroup].items.push(obj);
+        }
     });
 }
 
-// Función Genérica con Memoria de Grupos Combinados
 function procesarGenerico(filas, db, agruparIndex, tituloIndex, dataIndexes, omitirFila1 = false) {
     let lastGroup = "Sección";
     filas.forEach((f, i) => {
         if (omitirFila1 && i === 0) return;
-        
-        // Memoria para celdas combinadas
-        if (agruparIndex !== null && f[agruparIndex] && f[agruparIndex].trim()) {
-            lastGroup = f[agruparIndex].trim();
-        }
-        
-        // Verificamos si existe la columna de control para no guardar filas vacías
+        if (agruparIndex !== null && f[agruparIndex] && f[agruparIndex].trim()) lastGroup = f[agruparIndex].trim();
         const checkIndex = tituloIndex !== null ? tituloIndex : dataIndexes[0];
         if (!f[checkIndex] || !f[checkIndex].trim()) return; 
 
         if (!db[lastGroup]) db[lastGroup] = [];
-        
         let obj = { t: tituloIndex !== null ? f[tituloIndex].trim() : "", d: [] };
         dataIndexes.forEach(idx => { if (f[idx]) obj.d.push(f[idx].trim()); });
         db[lastGroup].push(obj);
+    });
+}
+
+// CORRECCIÓN: Doble agrupación para Bibliografía (Agrupa autores dentro de su Área)
+function procesarBibliografia(filas) {
+    AppState.db_bibliografia = {};
+    let lastSec = "Normativa";
+    let lastArea = "General";
+    
+    filas.forEach((f, i) => {
+        if (i===0) return;
+        if (f[1] && f[1].trim()) lastSec = f[1].trim(); 
+        if (f[2] && f[2].trim()) lastArea = f[2].trim(); 
+        
+        if (!f[3] || !f[3].trim()) return; 
+        
+        if (!AppState.db_bibliografia[lastSec]) AppState.db_bibliografia[lastSec] = {};
+        if (!AppState.db_bibliografia[lastSec][lastArea]) AppState.db_bibliografia[lastSec][lastArea] = [];
+        
+        AppState.db_bibliografia[lastSec][lastArea].push(f);
     });
 }
 
@@ -185,12 +206,12 @@ function procesarGenerico(filas, db, agruparIndex, tituloIndex, dataIndexes, omi
 // ENRUTADOR PRINCIPAL
 // =========================================
 function router(view, param = null) {
-    const vistas = ['view-home', 'view-indice', 'view-desarrollo', 'view-elementos', 
+    ['view-home', 'view-indice', 'view-desarrollo', 'view-elementos', 
         'view-contexto', 'view-barreras', 'view-curriculo', 'view-metodologia', 
         'view-actividades', 'view-medidas', 'view-instrumentos', 'view-bibliografia', 
-        'view-resolucion', 'view-detalle-apartado'];
-    
-    vistas.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+        'view-resolucion', 'view-detalle-apartado'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
     
     if (view === 'home') renderHome();
     else if (view === 'indice') renderIndice();
@@ -199,8 +220,8 @@ function router(view, param = null) {
     else if (view === 'contexto') renderContexto();
     else if (view === 'barreras') renderBarreras();
     else if (view === 'curriculo') renderCurriculo();
-    else if (view === 'metodologia') renderGenerico('view-metodologia', 'contenedor-metodologia', AppState.db_metodologia);
-    else if (view === 'actividades') renderGenerico('view-actividades', 'contenedor-actividades', AppState.db_actividades);
+    else if (view === 'metodologia') renderConCabecerasPropias('view-metodologia', 'contenedor-metodologia', AppState.db_metodologia);
+    else if (view === 'actividades') renderConCabecerasPropias('view-actividades', 'contenedor-actividades', AppState.db_actividades);
     else if (view === 'medidas') renderGenerico('view-medidas', 'contenedor-medidas', AppState.db_medidas);
     else if (view === 'instrumentos') renderGenerico('view-instrumentos', 'contenedor-instrumentos', AppState.db_instrumentos);
     else if (view === 'bibliografia') renderBibliografia();
@@ -211,99 +232,75 @@ function router(view, param = null) {
 }
 
 // =========================================
-// RENDERIZADORES DE VISTAS DE ELEMENTOS
+// RENDERIZADORES DE VISTAS
 // =========================================
-function renderContexto() {
-    document.getElementById('view-contexto').classList.remove('hidden');
-    const cont = document.getElementById('contenedor-contexto');
-    cont.innerHTML = '';
-    
-    if(Object.keys(AppState.db_contexto).length === 0) { cont.innerHTML = '<p style="text-align:center; padding: 20px;">Cargando o no hay datos.</p>'; return; }
 
-    Object.keys(AppState.db_contexto).forEach(sec => {
-        let html = `<div class="elemento-grupo"><div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div>`;
-        AppState.db_contexto[sec].forEach(i => {
-            let tE = "Ventajas Pedagógicas", tF = "Limitaciones / Barreras";
-            if (sec.toLowerCase().includes("psicoevolutivas") || sec.toLowerCase().includes("desarrollo")) { tE = "Estadio Cognitivo"; tF = "Implicación Metodológica"; }
-            html += `<div class="elemento-card"><h4>${decodificarHTML(i.t)}</h4><div class="elemento-grid">
-            <div class="elemento-col col-pros"><strong>${tE}</strong>${decodificarHTML(i.p)}</div>
-            <div class="elemento-col col-cons"><strong>${tF}</strong>${decodificarHTML(i.c)}</div></div></div>`;
-        });
-        cont.innerHTML += html + `</div>`;
-    });
-}
+// RENDERIZADOR INTELIGENTE: Pinta la información usando los Títulos Extraídos
+function renderConCabecerasPropias(viewId, containerId, db) {
+    document.getElementById(viewId).classList.remove('hidden');
+    const cont = document.getElementById(containerId); cont.innerHTML = '';
+    if(Object.keys(db).length === 0) { cont.innerHTML = '<p style="text-align:center; padding: 20px;">Cargando o no hay datos.</p>'; return; }
 
-function renderBarreras() {
-    document.getElementById('view-barreras').classList.remove('hidden');
-    const cont = document.getElementById('contenedor-barreras');
-    const cabeceras = AppState.cabecerasBarreras || [];
-    cont.innerHTML = '';
-    
-    if(AppState.db_barreras.length === 0) { cont.innerHTML = '<p style="text-align:center; padding: 20px;">Cargando o no hay datos.</p>'; return; }
-    
-    AppState.db_barreras.forEach((f, index) => {
-        const idColapso = `barrera-${index}`;
-        let contentHtml = "";
-        for(let j=2; j<=11; j++) {
-            if(f[j] && f[j].trim()) {
-                const tituloBloque = cabeceras[j] ? cabeceras[j] : 'Detalle';
-                contentHtml += `<div class="badge-tit">${decodificarHTML(tituloBloque)}</div><div style="margin-bottom:10px;">${decodificarHTML(f[j])}</div>`;
-            }
-        }
+    Object.keys(db).forEach(sec => {
+        let html = `<div class="elemento-grupo"><div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div><div class="notebook-wrapper" style="padding:15px; margin-bottom:0;">`;
+        const headers = db[sec].headers;
         
-        cont.innerHTML += `
-        <div class="elemento-grupo" style="margin-bottom:10px;">
-            <button class="acordeon-btn" onclick="toggleAcordeon('${idColapso}', this)">
-                ${decodificarHTML(f[1])} <span style="font-size:0.8rem">▼</span>
-            </button>
-            <div id="${idColapso}" class="acordeon-content">${contentHtml}</div>
-        </div>`;
-    });
-}
-
-function renderCurriculo() {
-    document.getElementById('view-curriculo').classList.remove('hidden');
-    const cont = document.getElementById('contenedor-curriculo');
-    cont.innerHTML = '';
-    
-    if(Object.keys(AppState.db_curriculo).length === 0) { cont.innerHTML = '<p style="text-align:center; padding: 20px;">Cargando o no hay datos.</p>'; return; }
-
-    Object.keys(AppState.db_curriculo).forEach(sec => {
-        let html = `<div class="elemento-grupo"><div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div><div class="notebook-wrapper" style="margin-bottom:0; padding:15px;">`;
-        AppState.db_curriculo[sec].forEach(i => {
-            html += `
-            <div class="curriculo-row" style="margin-bottom:15px; background:#fafafa;">
-                <div style="margin-bottom:8px; border-bottom:2px solid var(--primary-color); padding-bottom:5px;">
-                    <strong style="color:var(--accent-color); width:auto;">${decodificarHTML(i.comp)}</strong>
-                    <span style="font-size:0.9rem;">${decodificarHTML(i.def)}</span>
-                </div>
-                ${i.sab ? `<div class="curriculo-row"><strong>Saberes Básicos</strong><div class="curriculo-content">${decodificarHTML(i.sab)}</div></div>` : ''}
-                ${i.crit ? `<div class="curriculo-row"><strong>Criterios de Ev.</strong><div class="curriculo-content">${decodificarHTML(i.crit)}</div></div>` : ''}
-                ${i.inst ? `<div class="curriculo-row"><strong>Instrumentos</strong><div class="curriculo-content">${decodificarHTML(i.inst)}</div></div>` : ''}
-            </div>`;
+        db[sec].items.forEach(i => {
+            html += `<div class="curriculo-row">`;
+            if (i.t) {
+                // Imprimimos el título de la columna antes del dato
+                html += `<div style="margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-size:0.8rem; color:#666; text-transform:uppercase;">${decodificarHTML(headers.t)}</span><br>
+                            <strong style="color:var(--accent-color); font-size:1.05rem;">${decodificarHTML(i.t)}</strong>
+                         </div>`;
+            }
+            i.d.forEach((dato, idx) => { 
+                if(dato) {
+                    // Imprimimos el título de la columna (si existe) antes de las características
+                    const headerText = headers.d[idx] ? `<strong style="display:block; font-size:0.8rem; color:var(--primary-color); margin-top:8px;">${decodificarHTML(headers.d[idx])}</strong>` : '';
+                    html += `${headerText}<div style="margin-bottom:5px; font-size:0.95rem;">${decodificarHTML(dato)}</div>`; 
+                }
+            });
+            html += `</div>`;
         });
         cont.innerHTML += html + `</div></div>`;
     });
 }
 
+// CORRECCIÓN: Renderizador agrupado por Áreas para la Bibliografía
 function renderBibliografia() {
     document.getElementById('view-bibliografia').classList.remove('hidden');
-    const cont = document.getElementById('contenedor-bibliografia');
-    cont.innerHTML = '';
-    
+    const cont = document.getElementById('contenedor-bibliografia'); cont.innerHTML = '';
     if(Object.keys(AppState.db_bibliografia).length === 0) { cont.innerHTML = '<p style="text-align:center; padding: 20px;">Cargando o no hay datos.</p>'; return; }
 
     Object.keys(AppState.db_bibliografia).forEach((sec, sIdx) => {
         let html = `<div class="elemento-grupo"><div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div>`;
-        AppState.db_bibliografia[sec].forEach((f, iIdx) => {
-            const idColapso = `biblio-${sIdx}-${iIdx}`;
+        
+        Object.keys(AppState.db_bibliografia[sec]).forEach((area, aIdx) => {
+            const idColapso = `biblio-${sIdx}-${aIdx}`;
+            let contentHtml = "";
             
-            // Construcción segura del contenido evitando que dependa de si se llama "5.1" o "5.2"
-            let contentHtml = `<div style="margin-bottom:5px; font-weight:bold; color:var(--primary-color)">${decodificarHTML(f[3])}</div>`;
-            if (f[4] && f[4].trim()) contentHtml += `<div style="margin-bottom:5px;">${decodificarHTML(f[4])}</div>`;
-            if (f[5] && f[5].trim()) contentHtml += `<div style="font-style:italic; font-size:0.85rem;">${decodificarHTML(f[5])}</div>`;
+            // Recorremos todos los autores/ítems dentro de esta Área
+            AppState.db_bibliografia[sec][area].forEach(f => {
+                if (sec.includes("5.1")) { 
+                    contentHtml += `<div style="margin-bottom:10px;">${decodificarHTML(f[3])}</div>`; 
+                } 
+                else if (sec.includes("5.2")) { 
+                    contentHtml += `<div style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                                        <strong style="color:var(--primary-color);">${decodificarHTML(f[3])}</strong><br>${decodificarHTML(f[4])}
+                                    </div>`; 
+                } 
+                else { 
+                    contentHtml += `<div style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                                        <strong style="color:var(--primary-color); font-size:1.05rem;">${decodificarHTML(f[3])}</strong><br>
+                                        ${decodificarHTML(f[4])}<br>
+                                        <em style="font-size:0.85rem; color:#555;">${decodificarHTML(f[5])}</em>
+                                    </div>`; 
+                }
+            });
             
-            html += `<button class="acordeon-btn" style="border-left-color:#666;" onclick="toggleAcordeon('${idColapso}', this)">${decodificarHTML(f[2])} <span style="font-size:0.8rem">▼</span></button><div id="${idColapso}" class="acordeon-content">${contentHtml}</div>`;
+            html += `<button class="acordeon-btn" style="border-left-color:#666;" onclick="toggleAcordeon('${idColapso}', this)">${decodificarHTML(area)} <span style="font-size:0.8rem">▼</span></button>
+                     <div id="${idColapso}" class="acordeon-content">${contentHtml}</div>`;
         });
         cont.innerHTML += html + `</div>`;
     });
@@ -311,9 +308,7 @@ function renderBibliografia() {
 
 function renderGenerico(viewId, containerId, db) {
     document.getElementById(viewId).classList.remove('hidden');
-    const cont = document.getElementById(containerId);
-    cont.innerHTML = '';
-    
+    const cont = document.getElementById(containerId); cont.innerHTML = '';
     if(Object.keys(db).length === 0) { cont.innerHTML = '<p style="text-align:center; padding: 20px;">Cargando o no hay datos.</p>'; return; }
 
     Object.keys(db).forEach(sec => {
@@ -330,6 +325,53 @@ function renderGenerico(viewId, containerId, db) {
     });
 }
 
+function renderContexto() {
+    document.getElementById('view-contexto').classList.remove('hidden');
+    const cont = document.getElementById('contenedor-contexto'); cont.innerHTML = '';
+    if(Object.keys(AppState.db_contexto).length === 0) { cont.innerHTML = '<p style="text-align:center; padding: 20px;">Cargando o no hay datos.</p>'; return; }
+
+    Object.keys(AppState.db_contexto).forEach(sec => {
+        let html = `<div class="elemento-grupo"><div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div>`;
+        AppState.db_contexto[sec].forEach(i => {
+            let tE = "Ventajas Pedagógicas", tF = "Limitaciones / Barreras";
+            if (sec.toLowerCase().includes("psicoevolutivas") || sec.toLowerCase().includes("desarrollo")) { tE = "Estadio Cognitivo"; tF = "Implicación Metodológica"; }
+            html += `<div class="elemento-card"><h4>${decodificarHTML(i.t)}</h4><div class="elemento-grid"><div class="elemento-col col-pros"><strong>${tE}</strong>${decodificarHTML(i.p)}</div><div class="elemento-col col-cons"><strong>${tF}</strong>${decodificarHTML(i.c)}</div></div></div>`;
+        });
+        cont.innerHTML += html + `</div>`;
+    });
+}
+
+function renderBarreras() {
+    document.getElementById('view-barreras').classList.remove('hidden');
+    const cont = document.getElementById('contenedor-barreras'); const cabeceras = AppState.cabecerasBarreras || []; cont.innerHTML = '';
+    if(AppState.db_barreras.length === 0) { cont.innerHTML = '<p style="text-align:center; padding: 20px;">Cargando o no hay datos.</p>'; return; }
+    
+    AppState.db_barreras.forEach((f, index) => {
+        const idColapso = `barrera-${index}`; let contentHtml = "";
+        for(let j=2; j<=11; j++) {
+            if(f[j] && f[j].trim()) {
+                const tituloBloque = cabeceras[j] ? cabeceras[j] : 'Detalle';
+                contentHtml += `<div class="badge-tit">${decodificarHTML(tituloBloque)}</div><div style="margin-bottom:10px;">${decodificarHTML(f[j])}</div>`;
+            }
+        }
+        cont.innerHTML += `<div class="elemento-grupo" style="margin-bottom:10px;"><button class="acordeon-btn" onclick="toggleAcordeon('${idColapso}', this)">${decodificarHTML(f[1])} <span style="font-size:0.8rem">▼</span></button><div id="${idColapso}" class="acordeon-content">${contentHtml}</div></div>`;
+    });
+}
+
+function renderCurriculo() {
+    document.getElementById('view-curriculo').classList.remove('hidden');
+    const cont = document.getElementById('contenedor-curriculo'); cont.innerHTML = '';
+    if(Object.keys(AppState.db_curriculo).length === 0) { cont.innerHTML = '<p style="text-align:center; padding: 20px;">Cargando o no hay datos.</p>'; return; }
+
+    Object.keys(AppState.db_curriculo).forEach(sec => {
+        let html = `<div class="elemento-grupo"><div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div><div class="notebook-wrapper" style="margin-bottom:0; padding:15px;">`;
+        AppState.db_curriculo[sec].forEach(i => {
+            html += `<div class="curriculo-row" style="margin-bottom:15px; background:#fafafa;"><div style="margin-bottom:8px; border-bottom:2px solid var(--primary-color); padding-bottom:5px;"><strong style="color:var(--accent-color); width:auto;">${decodificarHTML(i.comp)}</strong> <span style="font-size:0.9rem;">${decodificarHTML(i.def)}</span></div>${i.sab ? `<div class="curriculo-row"><strong>Saberes Básicos</strong><div class="curriculo-content">${decodificarHTML(i.sab)}</div></div>` : ''}${i.crit ? `<div class="curriculo-row"><strong>Criterios de Ev.</strong><div class="curriculo-content">${decodificarHTML(i.crit)}</div></div>` : ''}${i.inst ? `<div class="curriculo-row"><strong>Instrumentos</strong><div class="curriculo-content">${decodificarHTML(i.inst)}</div></div>` : ''}</div>`;
+        });
+        cont.innerHTML += html + `</div></div>`;
+    });
+}
+
 function toggleAcordeon(id, btn) {
     const el = document.getElementById(id);
     if(el.classList.contains('show')) { el.classList.remove('show'); btn.classList.remove('activo'); btn.innerHTML = btn.innerHTML.replace('▲', '▼'); } 
@@ -337,12 +379,10 @@ function toggleAcordeon(id, btn) {
 }
 
 // =========================================
-// VISTAS ORIGINALES (Fichas, Resolución...)
+// VISTAS ORIGINALES (Fichas, Desarrollo...)
 // =========================================
 function renderHome() {
-    document.getElementById('view-home').classList.remove('hidden');
-    const grid = document.getElementById('grid-fichas');
-    grid.innerHTML = '';
+    document.getElementById('view-home').classList.remove('hidden'); const grid = document.getElementById('grid-fichas'); grid.innerHTML = '';
     const supuestosArr = Object.values(AppState.supuestos).sort((a,b) => parseInt(a.id) - parseInt(b.id));
     supuestosArr.forEach(sup => {
         const div = document.createElement('div'); div.className = 'card-ficha'; div.onclick = () => router('resolucion', sup.id);
@@ -353,20 +393,13 @@ function renderHome() {
     });
 }
 
-function renderIndice() {
-    document.getElementById('view-indice').classList.remove('hidden');
-    const grid = document.getElementById('grid-indice'); grid.innerHTML = '';
-    AppState.indiceMenu.forEach((item, index) => {
-        const btn = document.createElement('button'); btn.className = 'btn-indice'; btn.textContent = item.titulo; btn.onclick = () => router('detalle', index); grid.appendChild(btn);
-    });
-}
+function renderIndice() { document.getElementById('view-indice').classList.remove('hidden'); const grid = document.getElementById('grid-indice'); grid.innerHTML = ''; AppState.indiceMenu.forEach((item, index) => { const btn = document.createElement('button'); btn.className = 'btn-indice'; btn.textContent = item.titulo; btn.onclick = () => router('detalle', index); grid.appendChild(btn); });}
 
 function renderDesarrollo() {
     const view = document.getElementById('view-desarrollo'); view.classList.remove('hidden');
     const container = document.getElementById('lista-desarrollo'); container.innerHTML = '';
     Object.keys(AppState.desarrolloData).forEach((apartado) => {
-        const data = AppState.desarrolloData[apartado];
-        const section = document.createElement('div'); section.className = 'desarrollo-section';
+        const data = AppState.desarrolloData[apartado]; const section = document.createElement('div'); section.className = 'desarrollo-section';
         const titleDiv = document.createElement('div'); titleDiv.className = 'desarrollo-titulo'; titleDiv.innerHTML = decodificarHTML(apartado); section.appendChild(titleDiv);
         if (data.items.length > 0) {
             const gridDiv = document.createElement('div'); gridDiv.className = 'desarrollo-grid';
