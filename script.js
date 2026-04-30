@@ -7,7 +7,7 @@ const ENDPOINTS = {
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
     desarrollo: `${BASE_URL}?gid=1989575496&output=csv`, // Hoja 8
-    matriz: `${BASE_URL}?gid=1657297745&output=csv`,     // Nueva Hoja Matriz
+    matriz: `${BASE_URL}?gid=1657297745&output=csv`,     // Hoja Matriz
     p1: `${BASE_URL}?gid=0&output=csv`,
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
@@ -19,7 +19,7 @@ const AppState = {
     supuestos: {}, 
     indiceMenu: [], 
     desarrolloData: {}, 
-    matrizData: {}, // Guardará los datos de la nueva tabla
+    matrizData: {}, 
     contenidos: [], 
     currentApartadoIndex: 0 
 };
@@ -139,16 +139,15 @@ function procesarDesarrollo(filas) {
     });
 }
 
-// NUEVA FUNCIÓN: Procesa los datos de la Hoja "Matriz"
 function procesarMatriz(filas) {
     filas.forEach((fila, index) => {
-        if (index === 0) return; // Saltamos la cabecera (Tipo Entorno, Ventajas...)
-        if (fila.length < 4 || !fila[0].trim()) return; 
+        if (index === 0) return; // Saltamos la cabecera
+        if (fila.length < 1 || !fila[0].trim()) return; // Ignorar si no hay grupo
         
-        const grupo = fila[0].trim(); // Columna A
-        const titulo = fila[1].trim(); // Columna B
-        const pros = fila[2].trim();  // Columna C
-        const cons = fila[3].trim();  // Columna D
+        const grupo = fila[0].trim();
+        const titulo = fila[1] ? fila[1].trim() : '';
+        const pros = fila[2] ? fila[2].trim() : '';
+        const cons = fila[3] ? fila[3].trim() : '';
 
         if (!AppState.matrizData[grupo]) {
             AppState.matrizData[grupo] = [];
@@ -161,15 +160,19 @@ function procesarMatriz(filas) {
 // NAVEGACIÓN Y VISTAS
 // =========================================
 function router(view, param = null) {
+    // Control de seguridad añadido: si el ID no existe, no falla, simplemente avanza.
     ['view-home', 'view-indice', 'view-desarrollo', 'view-matriz', 'view-resolucion', 'view-detalle-apartado'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
     });
+    
     if (view === 'home') renderHome();
     else if (view === 'indice') renderIndice();
     else if (view === 'desarrollo') renderDesarrollo();
     else if (view === 'matriz') renderMatriz();
     else if (view === 'resolucion') renderResolucion(param);
     else if (view === 'detalle') renderDetalleApartado(param);
+    
     window.scrollTo(0,0);
 }
 
@@ -226,7 +229,6 @@ function renderIndice() {
     });
 }
 
-// NUEVA VISTA: MATRIZ DE APOYO
 function renderMatriz() {
     document.getElementById('view-matriz').classList.remove('hidden');
     const cont = document.getElementById('contenedor-matriz');
@@ -235,13 +237,11 @@ function renderMatriz() {
     Object.keys(AppState.matrizData).forEach(grupo => {
         const items = AppState.matrizData[grupo];
         
-        // El título del grupo de Columna A (Se decodifica para mantener colores)
         let html = `
         <div class="matriz-grupo">
             <div class="matriz-grupo-titulo">${decodificarHTML(grupo)}</div>
         `;
         
-        // Iteramos los elementos de ese grupo (Columnas B, C, D)
         items.forEach(i => {
             html += `
             <div class="matriz-card">
