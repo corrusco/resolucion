@@ -14,7 +14,7 @@
             <button onclick="router('home')">Supuestos</button>
             <button onclick="router('indice')">Índice de Desarrollo</button>
             <button onclick="router('desarrollo')">Desarrollo</button>
-            <button onclick="router('matriz')">Matriz</button>
+            <button onclick="router('elementos')">Elementos</button>
         </nav>
     </header>
 
@@ -56,15 +56,31 @@
             </div>
         </section>
 
-        <!-- AQUI ESTÁ LA VISTA DE LA MATRIZ -->
-        <section id="view-matriz" class="hidden">
+        <!-- NUEVA VISTA: MENÚ DE ELEMENTOS -->
+        <section id="view-elementos" class="hidden">
             <div class="header-seccion">
-                <h2>Matriz de Contextos y Ciclos</h2>
-                <p class="desc-seccion">Argumentos rápidos de ventajas y limitaciones para el Bloque de Contexto.</p>
+                <h2>Elementos del Desarrollo</h2>
+                <p class="desc-seccion">Menú principal de bloques estructurales y recursos.</p>
             </div>
-            <div id="contenedor-matriz"></div>
+            <div class="grid-indice">
+                <!-- Botón de la nueva página de Contexto -->
+                <button class="btn-indice" onclick="router('contexto')">Contexto</button>
+                <!-- Se podrán añadir más elementos aquí en el futuro -->
+            </div>
             <div class="control-buttons" style="justify-content: center;">
                 <button class="btn-secondary" onclick="router('home')">Volver a Supuestos</button>
+            </div>
+        </section>
+
+        <!-- NUEVA VISTA: CONTEXTO -->
+        <section id="view-contexto" class="hidden">
+            <div class="header-seccion">
+                <h2>Contexto</h2>
+                <p class="desc-seccion">Análisis de entornos, centros y características psicoevolutivas.</p>
+            </div>
+            <div id="contenedor-contexto"></div>
+            <div class="control-buttons" style="justify-content: center;">
+                <button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button>
             </div>
         </section>
 
