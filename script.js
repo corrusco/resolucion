@@ -7,6 +7,7 @@ const ENDPOINTS = {
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
     desarrollo: `${BASE_URL}?gid=1989575496&output=csv`, // Hoja 8
+    matriz: `${BASE_URL}?gid=1657297745&output=csv`,     // Nueva Hoja Matriz
     p1: `${BASE_URL}?gid=0&output=csv`,
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
@@ -18,28 +19,23 @@ const AppState = {
     supuestos: {}, 
     indiceMenu: [], 
     desarrolloData: {}, 
+    matrizData: {}, // Guardará los datos de la nueva tabla
     contenidos: [], 
     currentApartadoIndex: 0 
 };
 
 // =========================================
-// MOTOR DE DECODIFICACIÓN (MÁGICO)
+// MOTOR DE DECODIFICACIÓN
 // =========================================
 function decodificarHTML(html) {
     if (!html) return "";
-    
-    // 1. Creamos un elemento temporal para "traducir" las entidades (<, >, etc)
     const txt = document.createElement("textarea");
     txt.innerHTML = html;
     let paso1 = txt.value;
-    
-    // 2. Si detectamos que sigue habiendo etiquetas codificadas, repetimos (doble codificación)
     if (paso1.includes("&lt;") || paso1.includes("&gt;")) {
         txt.innerHTML = paso1;
         paso1 = txt.value;
     }
-    
-    // 3. Limpieza final de saltos de línea del Excel para que no rompan el HTML
     return paso1.trim().replace(/\n/g, "<br>");
 }
 
@@ -80,15 +76,16 @@ async function fetchSafe(url) {
 
 async function initApp() {
     try {
-        const [csvFichas, csvIndice, csvDes, csvP1, csvP2, csvP3, csvP4, csvP5] = await Promise.all([
+        const [csvFichas, csvIndice, csvDes, csvMatriz, csvP1, csvP2, csvP3, csvP4, csvP5] = await Promise.all([
             fetchSafe(ENDPOINTS.fichas), fetchSafe(ENDPOINTS.indice), fetchSafe(ENDPOINTS.desarrollo),
-            fetchSafe(ENDPOINTS.p1), fetchSafe(ENDPOINTS.p2), fetchSafe(ENDPOINTS.p3),
-            fetchSafe(ENDPOINTS.p4), fetchSafe(ENDPOINTS.p5)
+            fetchSafe(ENDPOINTS.matriz), fetchSafe(ENDPOINTS.p1), fetchSafe(ENDPOINTS.p2), 
+            fetchSafe(ENDPOINTS.p3), fetchSafe(ENDPOINTS.p4), fetchSafe(ENDPOINTS.p5)
         ]);
 
         procesarFichas(parseCSV(csvFichas));
         procesarIndice(parseCSV(csvIndice));
         procesarDesarrollo(parseCSV(csvDes));
+        procesarMatriz(parseCSV(csvMatriz));
         
         const allRows = [...parseCSV(csvP1), ...parseCSV(csvP2), ...parseCSV(csvP3), ...parseCSV(csvP4), ...parseCSV(csvP5)];
         const uniqueContenidos = [];
@@ -142,22 +139,40 @@ function procesarDesarrollo(filas) {
     });
 }
 
+// NUEVA FUNCIÓN: Procesa los datos de la Hoja "Matriz"
+function procesarMatriz(filas) {
+    filas.forEach((fila, index) => {
+        if (index === 0) return; // Saltamos la cabecera (Tipo Entorno, Ventajas...)
+        if (fila.length < 4 || !fila[0].trim()) return; 
+        
+        const grupo = fila[0].trim(); // Columna A
+        const titulo = fila[1].trim(); // Columna B
+        const pros = fila[2].trim();  // Columna C
+        const cons = fila[3].trim();  // Columna D
+
+        if (!AppState.matrizData[grupo]) {
+            AppState.matrizData[grupo] = [];
+        }
+        AppState.matrizData[grupo].push({ titulo, pros, cons });
+    });
+}
+
 // =========================================
 // NAVEGACIÓN Y VISTAS
 // =========================================
 function router(view, param = null) {
-    ['view-home', 'view-indice', 'view-desarrollo', 'view-resolucion', 'view-detalle-apartado'].forEach(id => {
+    ['view-home', 'view-indice', 'view-desarrollo', 'view-matriz', 'view-resolucion', 'view-detalle-apartado'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
     });
     if (view === 'home') renderHome();
     else if (view === 'indice') renderIndice();
     else if (view === 'desarrollo') renderDesarrollo();
+    else if (view === 'matriz') renderMatriz();
     else if (view === 'resolucion') renderResolucion(param);
     else if (view === 'detalle') renderDetalleApartado(param);
     window.scrollTo(0,0);
 }
 
-// CORRECCIÓN: Se han restaurado todos los campos de la ficha principal
 function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
@@ -172,7 +187,6 @@ function renderHome() {
         
         let cardHtml = `<div class="ficha-numero">Supuesto ${sup.id}</div>`;
 
-        // Aquí están de nuevo todos los campos mapeados de tu hoja de Excel
         const campos = [
             { l: "Área y Curso", k: ["Área y Curso", "Área"] },
             { l: "Contexto", k: ["Contexto"] },
@@ -189,7 +203,7 @@ function renderHome() {
                 if (sup[campo.k[i]]) { valor = String(sup[campo.k[i]]); break; }
             }
             if (valor) {
-                valor = decodificarHTML(valor); // Limpiamos HTML por si acaso
+                valor = decodificarHTML(valor); 
                 cardHtml += `<div class="ficha-dato" style="margin-bottom:0.8rem;"><strong>${campo.l}:</strong><br><span style="font-size:0.9rem;color:#444;">${valor}</span></div>`;
             }
         });
@@ -212,9 +226,44 @@ function renderIndice() {
     });
 }
 
-// =========================================
-// VISTA: DESARROLLO (VISOR INTEGRADO)
-// =========================================
+// NUEVA VISTA: MATRIZ DE APOYO
+function renderMatriz() {
+    document.getElementById('view-matriz').classList.remove('hidden');
+    const cont = document.getElementById('contenedor-matriz');
+    cont.innerHTML = '';
+
+    Object.keys(AppState.matrizData).forEach(grupo => {
+        const items = AppState.matrizData[grupo];
+        
+        // El título del grupo de Columna A (Se decodifica para mantener colores)
+        let html = `
+        <div class="matriz-grupo">
+            <div class="matriz-grupo-titulo">${decodificarHTML(grupo)}</div>
+        `;
+        
+        // Iteramos los elementos de ese grupo (Columnas B, C, D)
+        items.forEach(i => {
+            html += `
+            <div class="matriz-card">
+                <h4>${decodificarHTML(i.titulo)}</h4>
+                <div class="matriz-grid">
+                    <div class="matriz-col col-pros">
+                        <strong>Ventajas Pedagógicas</strong>
+                        ${decodificarHTML(i.pros)}
+                    </div>
+                    <div class="matriz-col col-cons">
+                        <strong>Limitaciones / Barreras</strong>
+                        ${decodificarHTML(i.cons)}
+                    </div>
+                </div>
+            </div>`;
+        });
+        
+        html += `</div>`;
+        cont.innerHTML += html;
+    });
+}
+
 function renderDesarrollo() {
     const view = document.getElementById('view-desarrollo');
     view.classList.remove('hidden');
@@ -228,7 +277,7 @@ function renderDesarrollo() {
         
         const titleDiv = document.createElement('div');
         titleDiv.className = 'desarrollo-titulo';
-        titleDiv.innerHTML = decodificarHTML(apartado); // Aplicamos decodificador al título
+        titleDiv.innerHTML = decodificarHTML(apartado); 
         section.appendChild(titleDiv);
         
         if (data.items.length > 0) {
@@ -256,7 +305,6 @@ function renderDesarrollo() {
                 btn.onclick = () => {
                     gridDiv.classList.add('hidden');
                     visorDiv.classList.remove('hidden');
-                    // Inyectamos el HTML decodificado correctamente
                     visorContent.innerHTML = `<strong style="color:var(--primary-color); display:block; margin-bottom:10px; border-bottom:1px solid #ddd;">Supuesto ${sup.num}</strong>` + decodificarHTML(sup.html);
                 };
                 gridDiv.appendChild(btn);
@@ -268,7 +316,6 @@ function renderDesarrollo() {
     });
 }
 
-// --- RESOLUCIÓN Y DETALLE (Usando decodificador) ---
 function renderResolucion(supuestoId) {
     document.getElementById('view-resolucion').classList.remove('hidden');
     const sup = AppState.supuestos[supuestoId];
