@@ -1,55 +1,49 @@
 // =========================================
-// CONFIGURACIÓN Y URLS
+// CONFIGURACIÓN Y URLS DE TODAS LAS HOJAS
 // =========================================
 const BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVIJ3VfYy2BwRKgZ4bmXR_AXbANpsT31v7qyM1FOECv4GCpg9VEfiBR9557mYDIPXlQV1jeMmh3tgk/pub";
 
 const ENDPOINTS = {
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
-    desarrollo: `${BASE_URL}?gid=1989575496&output=csv`, // Hoja 8
-    elementos: `${BASE_URL}?gid=1657297745&output=csv`,  // Hoja Elementos (Contexto)
-    p1: `${BASE_URL}?gid=0&output=csv`,
-    p2: `${BASE_URL}?gid=195232515&output=csv`,
-    p3: `${BASE_URL}?gid=1223707292&output=csv`,
-    p4: `${BASE_URL}?gid=436032444&output=csv`,
-    p5: `${BASE_URL}?gid=1447159089&output=csv`
+    desarrollo: `${BASE_URL}?gid=1989575496&output=csv`,
+    contexto: `${BASE_URL}?gid=1657297745&output=csv`,
+    barreras: `${BASE_URL}?gid=1499539681&output=csv`,
+    curriculo: `${BASE_URL}?gid=668462564&output=csv`,
+    metodologia: `${BASE_URL}?gid=2002680806&output=csv`,
+    actividades: `${BASE_URL}?gid=760733333&output=csv`,
+    medidas: `${BASE_URL}?gid=1338745614&output=csv`,
+    instrumentos: `${BASE_URL}?gid=1337355697&output=csv`,
+    bibliografia: `${BASE_URL}?gid=1637340083&output=csv`,
+    // Hojas de contenido puro para la resolución final
+    p1: `${BASE_URL}?gid=0&output=csv`, p2: `${BASE_URL}?gid=195232515&output=csv`, p3: `${BASE_URL}?gid=1223707292&output=csv`, p4: `${BASE_URL}?gid=436032444&output=csv`, p5: `${BASE_URL}?gid=1447159089&output=csv`
 };
 
 const AppState = {
-    supuestos: {}, 
-    indiceMenu: [], 
-    desarrolloData: {}, 
-    contextoData: {}, // Guardará los datos procesados del Contexto
-    contenidos: [], 
-    currentApartadoIndex: 0 
+    supuestos: {}, indiceMenu: [], desarrolloData: {}, contenidos: [], currentApartadoIndex: 0,
+    // Nuevas bases de datos modulares
+    db_contexto: {}, db_barreras: [], db_curriculo: {}, db_metodologia: {}, 
+    db_actividades: {}, db_medidas: {}, db_instrumentos: {}, db_bibliografia: {}
 };
 
 // =========================================
-// MOTOR DE DECODIFICACIÓN
+// DECODIFICADOR Y PARSER
 // =========================================
 function decodificarHTML(html) {
     if (!html) return "";
     const txt = document.createElement("textarea");
     txt.innerHTML = html;
     let paso1 = txt.value;
-    if (paso1.includes("&lt;") || paso1.includes("&gt;")) {
-        txt.innerHTML = paso1;
-        paso1 = txt.value;
-    }
+    if (paso1.includes("&lt;") || paso1.includes("&gt;")) { txt.innerHTML = paso1; paso1 = txt.value; }
     return paso1.trim().replace(/\n/g, "<br>");
 }
 
-// =========================================
-// PARSER Y CARGA
-// =========================================
 function parseCSV(str) {
     if (!str) return [];
-    const arr = [];
-    let quote = false;
+    const arr = []; let quote = false;
     for (let row = 0, col = 0, c = 0; c < str.length; c++) {
         let cc = str[c], nc = str[c+1];
-        arr[row] = arr[row] || [];
-        arr[row][col] = arr[row][col] || '';
+        arr[row] = arr[row] || []; arr[row][col] = arr[row][col] || '';
         if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
         if (cc == '"') { quote = !quote; continue; }
         if (cc == ',' && !quote) { ++col; continue; }
@@ -60,341 +54,339 @@ function parseCSV(str) {
     }
     return arr;
 }
-
-function normalizarTexto(txt) {
-    if (!txt) return '';
-    return String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
-}
+function normalizarTexto(txt) { return txt ? String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '') : ''; }
 
 async function fetchSafe(url) {
-    try {
-        const res = await fetch(url + "&cache=" + Date.now());
-        if (!res.ok) return '';
-        return await res.text();
-    } catch(e) { return ''; }
+    try { const res = await fetch(url + "&cache=" + Date.now()); return res.ok ? await res.text() : ''; } catch(e) { return ''; }
 }
 
+// =========================================
+// INICIALIZACIÓN PARALELA
+// =========================================
 async function initApp() {
     try {
-        const [csvFichas, csvIndice, csvDes, csvElementos, csvP1, csvP2, csvP3, csvP4, csvP5] = await Promise.all([
-            fetchSafe(ENDPOINTS.fichas), fetchSafe(ENDPOINTS.indice), fetchSafe(ENDPOINTS.desarrollo),
-            fetchSafe(ENDPOINTS.elementos), fetchSafe(ENDPOINTS.p1), fetchSafe(ENDPOINTS.p2), 
-            fetchSafe(ENDPOINTS.p3), fetchSafe(ENDPOINTS.p4), fetchSafe(ENDPOINTS.p5)
-        ]);
+        const fetches = Object.values(ENDPOINTS).map(url => fetchSafe(url));
+        const results = await Promise.all(fetches);
+        
+        const [
+            csvFichas, csvIndice, csvDes, csvContx, csvBarr, csvCurr, csvMetod, csvActiv, csvMedidas, csvInstru, csvBiblio,
+            csvP1, csvP2, csvP3, csvP4, csvP5
+        ] = results;
 
+        // Procesadores Base
         procesarFichas(parseCSV(csvFichas));
         procesarIndice(parseCSV(csvIndice));
         procesarDesarrollo(parseCSV(csvDes));
-        procesarContexto(parseCSV(csvElementos));
         
+        // Procesadores de Elementos
+        procesarContexto(parseCSV(csvContx));
+        procesarBarreras(parseCSV(csvBarr));
+        procesarCurriculo(parseCSV(csvCurr));
+        procesarGenerico(parseCSV(csvMetod), AppState.db_metodologia, 1, 2, [3,4]); // Metodología
+        procesarGenerico(parseCSV(csvActiv), AppState.db_actividades, 1, 2, [3,4,5,6]); // Actividades
+        procesarGenerico(parseCSV(csvMedidas), AppState.db_medidas, 2, null, [3,4], true); // Medidas (Sin columna C agrupadora, usa D y E)
+        procesarGenerico(parseCSV(csvInstru), AppState.db_instrumentos, 2, null, [3,4], true); // Instrumentos
+        procesarBibliografia(parseCSV(csvBiblio));
+
         const allRows = [...parseCSV(csvP1), ...parseCSV(csvP2), ...parseCSV(csvP3), ...parseCSV(csvP4), ...parseCSV(csvP5)];
-        const uniqueContenidos = [];
-        const seen = new Set();
-        allRows.forEach(row => {
-            const rowStr = row.join('|');
-            if(!seen.has(rowStr) && row.length > 0) { seen.add(rowStr); uniqueContenidos.push(row); }
-        });
+        const uniqueContenidos = []; const seen = new Set();
+        allRows.forEach(row => { const rowStr = row.join('|'); if(!seen.has(rowStr) && row.length > 0) { seen.add(rowStr); uniqueContenidos.push(row); }});
         AppState.contenidos = uniqueContenidos;
 
         document.getElementById('loader').classList.add('hidden');
         router('home');
-    } catch (error) { console.error(error); }
+    } catch (error) { console.error(error); document.getElementById('loader').innerHTML="Error cargando datos.";}
 }
 
-function procesarFichas(filas) {
-    filas.forEach(fila => {
-        if(fila.length < 3 || !fila[0]) return;
-        const id = fila[0].trim();
-        const categoria = fila[1].trim();
-        const contenido = fila[2].trim();
+// =========================================
+// FUNCIONES DE PROCESAMIENTO (DATA PARSING)
+// =========================================
+function procesarFichas(filas) { filas.forEach(f => { if(f.length<3||!f[0])return; const id=f[0].trim(); if(!AppState.supuestos[id])AppState.supuestos[id]={id:id}; AppState.supuestos[id][f[1].trim()]=f[2].trim(); });}
+function procesarIndice(filas) { filas.forEach((f,i) => { if(f.length<1||!f[0])return; AppState.indiceMenu.push({titulo:f[0].trim(), desc:f[1]?f[1].trim():'', orden:f[2]?f[2].trim():'', justificacion:f[3]?f[3].trim():''}); });}
+function procesarDesarrollo(filas) { filas.forEach(f => { if(f.length<1||!f[0].trim())return; const ap=f[0].trim(); if(!AppState.desarrolloData[ap])AppState.desarrolloData[ap]={items:[]}; if((f[1]&&f[1].trim())||(f[2]&&f[2].trim())) AppState.desarrolloData[ap].items.push({num:f[1]?f[1].trim():'', html:f[2]?f[2].trim():''}); });}
 
-        if (!AppState.supuestos[id]) AppState.supuestos[id] = { id: id };
-        AppState.supuestos[id][categoria] = contenido;
+function procesarContexto(filas) {
+    AppState.db_contexto = {};
+    filas.forEach((f, i) => {
+        if (i===0 || f.length<3 || !f[2] || !f[2].trim()) return; 
+        const sec = f[2].trim();
+        if (!AppState.db_contexto[sec]) AppState.db_contexto[sec] = [];
+        AppState.db_contexto[sec].push({ t: f[3]?f[3].trim():'', p: f[4]?f[4].trim():'', c: f[5]?f[5].trim():'' });
     });
 }
 
-function procesarIndice(filas) {
-    filas.forEach((fila, index) => {
-        if(fila.length < 1 || !fila[0]) return;
-        AppState.indiceMenu.push({
-            titulo: fila[0].trim(), desc: fila[1] ? fila[1].trim() : '',
-            orden: fila[2] ? fila[2].trim() : '', justificacion: fila[3] ? fila[3].trim() : ''
+function procesarBarreras(filas) {
+    AppState.db_barreras = [];
+    if(filas.length > 0) AppState.cabecerasBarreras = filas[0]; // Guardar títulos fila 1
+    filas.forEach((f, i) => {
+        if (i===0 || f.length<2 || !f[1] || !f[1].trim()) return;
+        AppState.db_barreras.push(f); // Guardamos la fila entera para leer sus columnas en el render
+    });
+}
+
+function procesarCurriculo(filas) {
+    AppState.db_curriculo = {};
+    filas.forEach((f, i) => {
+        if (i===0 || f.length<3 || !f[2] || !f[2].trim()) return;
+        const sec = f[2].trim();
+        if (!AppState.db_curriculo[sec]) AppState.db_curriculo[sec] = [];
+        AppState.db_curriculo[sec].push({
+            comp: f[3]?f[3].trim():'', def: f[4]?f[4].trim():'', sab: f[5]?f[5].trim():'', 
+            crit: f[6]?f[6].trim():'', inst: f[7]?f[7].trim():''
         });
     });
 }
 
-function procesarDesarrollo(filas) {
-    filas.forEach((fila) => {
-        if (fila.length < 1 || !fila[0].trim()) return; 
-        const apartado = fila[0].trim();
-        const numSupuesto = fila[1] ? fila[1].trim() : '';
-        const contenidoHTML = fila[2] ? fila[2].trim() : '';
-
-        if (!AppState.desarrolloData[apartado]) {
-            AppState.desarrolloData[apartado] = { items: [] };
-        }
-        if (numSupuesto !== '' || contenidoHTML !== '') {
-            AppState.desarrolloData[apartado].items.push({ num: numSupuesto, html: contenidoHTML });
-        }
+function procesarBibliografia(filas) {
+    AppState.db_bibliografia = {};
+    filas.forEach((f, i) => {
+        if (i===0 || f.length<2 || !f[1] || !f[1].trim()) return;
+        const sec = f[1].trim();
+        if (!AppState.db_bibliografia[sec]) AppState.db_bibliografia[sec] = [];
+        AppState.db_bibliografia[sec].push(f); // Guardamos fila entera
     });
 }
 
-// PROCESAMIENTO PÁGINA CONTEXTO
-function procesarContexto(filas) {
-    AppState.contextoData = {};
-    filas.forEach((fila, index) => {
-        if (index === 0) return; // Saltamos la cabecera
-        // Comprobamos que exista la sección en la Columna C (índice 2)
-        if (fila.length < 3 || !fila[2] || !fila[2].trim()) return; 
+// Función genérica para Metodologías, Actividades, Medidas e Instrumentos
+// agruparIndex: Columna que agrupa (ej. Seccion B o C). Si es null, no agrupa, usa "General".
+function procesarGenerico(filas, db, agruparIndex, tituloIndex, dataIndexes, omitirFila1 = false) {
+    filas.forEach((f, i) => {
+        if (omitirFila1 && i===0) return;
+        let sec = "Listado";
+        if (agruparIndex !== null && f[agruparIndex] && f[agruparIndex].trim()) sec = f[agruparIndex].trim();
+        if (!f[tituloIndex!==null?tituloIndex:dataIndexes[0]]) return; // Fila vacía
         
-        const seccion = fila[2].trim(); // Columna C (Sección)
-        const titulo = fila[3] ? fila[3].trim() : ''; // Columna D (Elemento)
-        const colE = fila[4] ? fila[4].trim() : '';   // Columna E (Ventaja / Estadio)
-        const colF = fila[5] ? fila[5].trim() : '';   // Columna F (Limitación / Implicación)
-
-        if (!AppState.contextoData[seccion]) {
-            AppState.contextoData[seccion] = [];
-        }
-        AppState.contextoData[seccion].push({ titulo, colE, colF });
+        if (!db[sec]) db[sec] = [];
+        let obj = { t: tituloIndex!==null ? f[tituloIndex].trim() : f[dataIndexes[0]].trim(), d: [] };
+        dataIndexes.forEach(idx => { if(f[idx]) obj.d.push(f[idx].trim()); });
+        db[sec].push(obj);
     });
 }
 
 // =========================================
-// NAVEGACIÓN Y VISTAS
+// ENRUTADOR PRINCIPAL
 // =========================================
 function router(view, param = null) {
-    ['view-home', 'view-indice', 'view-desarrollo', 'view-elementos', 'view-contexto', 'view-resolucion', 'view-detalle-apartado'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
-    });
+    const vistas = ['view-home', 'view-indice', 'view-desarrollo', 'view-elementos', 
+        'view-contexto', 'view-barreras', 'view-curriculo', 'view-metodologia', 
+        'view-actividades', 'view-medidas', 'view-instrumentos', 'view-bibliografia', 
+        'view-resolucion', 'view-detalle-apartado'];
+    
+    vistas.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
     
     if (view === 'home') renderHome();
     else if (view === 'indice') renderIndice();
     else if (view === 'desarrollo') renderDesarrollo();
-    else if (view === 'elementos') renderElementos();
+    else if (view === 'elementos') document.getElementById('view-elementos').classList.remove('hidden');
     else if (view === 'contexto') renderContexto();
+    else if (view === 'barreras') renderBarreras();
+    else if (view === 'curriculo') renderCurriculo();
+    else if (view === 'metodologia') renderGenerico('view-metodologia', 'contenedor-metodologia', AppState.db_metodologia);
+    else if (view === 'actividades') renderGenerico('view-actividades', 'contenedor-actividades', AppState.db_actividades);
+    else if (view === 'medidas') renderGenerico('view-medidas', 'contenedor-medidas', AppState.db_medidas);
+    else if (view === 'instrumentos') renderGenerico('view-instrumentos', 'contenedor-instrumentos', AppState.db_instrumentos);
+    else if (view === 'bibliografia') renderBibliografia();
     else if (view === 'resolucion') renderResolucion(param);
     else if (view === 'detalle') renderDetalleApartado(param);
     
     window.scrollTo(0,0);
 }
 
+// =========================================
+// RENDERIZADORES DE VISTAS DE ELEMENTOS
+// =========================================
+function renderContexto() {
+    document.getElementById('view-contexto').classList.remove('hidden');
+    const cont = document.getElementById('contenedor-contexto');
+    cont.innerHTML = '';
+    Object.keys(AppState.db_contexto).forEach(sec => {
+        let html = `<div class="elemento-grupo"><div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div>`;
+        AppState.db_contexto[sec].forEach(i => {
+            let tE = "Ventajas Pedagógicas", tF = "Limitaciones / Barreras";
+            if (sec.toLowerCase().includes("psicoevolutivas") || sec.toLowerCase().includes("desarrollo")) { tE = "Estadio Cognitivo"; tF = "Implicación Metodológica"; }
+            html += `<div class="elemento-card"><h4>${decodificarHTML(i.t)}</h4><div class="elemento-grid">
+            <div class="elemento-col col-pros"><strong>${tE}</strong>${decodificarHTML(i.p)}</div>
+            <div class="elemento-col col-cons"><strong>${tF}</strong>${decodificarHTML(i.c)}</div></div></div>`;
+        });
+        cont.innerHTML += html + `</div>`;
+    });
+}
+
+function renderBarreras() {
+    document.getElementById('view-barreras').classList.remove('hidden');
+    const cont = document.getElementById('contenedor-barreras');
+    const cabeceras = AppState.cabecerasBarreras;
+    cont.innerHTML = '';
+    
+    AppState.db_barreras.forEach((f, index) => {
+        const idColapso = `barrera-${index}`;
+        let contentHtml = "";
+        // Leer Columnas C a L (índices 2 a 11)
+        for(let j=2; j<=11; j++) {
+            if(f[j] && f[j].trim()) {
+                const tituloBloque = cabeceras[j] ? cabeceras[j] : 'Detalle';
+                contentHtml += `<div class="badge-tit">${decodificarHTML(tituloBloque)}</div><div>${decodificarHTML(f[j])}</div>`;
+            }
+        }
+        
+        cont.innerHTML += `
+        <div class="elemento-grupo" style="margin-bottom:10px;">
+            <button class="acordeon-btn" onclick="toggleAcordeon('${idColapso}', this)">
+                ${decodificarHTML(f[1])} <span style="font-size:0.8rem">▼</span>
+            </button>
+            <div id="${idColapso}" class="acordeon-content">${contentHtml}</div>
+        </div>`;
+    });
+}
+
+function renderCurriculo() {
+    document.getElementById('view-curriculo').classList.remove('hidden');
+    const cont = document.getElementById('contenedor-curriculo');
+    cont.innerHTML = '';
+    Object.keys(AppState.db_curriculo).forEach(sec => {
+        let html = `<div class="elemento-grupo"><div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div><div class="notebook-wrapper" style="margin-bottom:0; padding:15px;">`;
+        AppState.db_curriculo[sec].forEach(i => {
+            html += `
+            <div class="curriculo-row" style="margin-bottom:15px; background:#fafafa;">
+                <div style="margin-bottom:8px; border-bottom:2px solid var(--primary-color); padding-bottom:5px;">
+                    <strong style="color:var(--accent-color); width:auto;">${decodificarHTML(i.comp)}</strong>
+                    <span style="font-size:0.9rem;">${decodificarHTML(i.def)}</span>
+                </div>
+                ${i.sab ? `<div class="curriculo-row"><strong>Saberes Básicos</strong><div class="curriculo-content">${decodificarHTML(i.sab)}</div></div>` : ''}
+                ${i.crit ? `<div class="curriculo-row"><strong>Criterios de Ev.</strong><div class="curriculo-content">${decodificarHTML(i.crit)}</div></div>` : ''}
+                ${i.inst ? `<div class="curriculo-row"><strong>Instrumentos</strong><div class="curriculo-content">${decodificarHTML(i.inst)}</div></div>` : ''}
+            </div>`;
+        });
+        cont.innerHTML += html + `</div></div>`;
+    });
+}
+
+function renderBibliografia() {
+    document.getElementById('view-bibliografia').classList.remove('hidden');
+    const cont = document.getElementById('contenedor-bibliografia');
+    cont.innerHTML = '';
+    Object.keys(AppState.db_bibliografia).forEach((sec, sIdx) => {
+        let html = `<div class="elemento-grupo"><div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div>`;
+        AppState.db_bibliografia[sec].forEach((f, iIdx) => {
+            const idColapso = `biblio-${sIdx}-${iIdx}`;
+            let contentHtml = "";
+            if (sec.includes("5.1")) { contentHtml = decodificarHTML(f[3]); } 
+            else if (sec.includes("5.2")) { contentHtml = `<strong>${decodificarHTML(f[3])}</strong><br>${decodificarHTML(f[4])}`; } 
+            else { contentHtml = `<strong>${decodificarHTML(f[3])}</strong><br>${decodificarHTML(f[4])}<br><em style="font-size:0.8rem">${decodificarHTML(f[5])}</em>`; }
+            
+            html += `<button class="acordeon-btn" style="border-left-color:#666;" onclick="toggleAcordeon('${idColapso}', this)">${decodificarHTML(f[2])}</button><div id="${idColapso}" class="acordeon-content">${contentHtml}</div>`;
+        });
+        cont.innerHTML += html + `</div>`;
+    });
+}
+
+// Renderizador Universal (Usado para Metodología, Actividades, Medidas, Instrumentos)
+function renderGenerico(viewId, containerId, db) {
+    document.getElementById(viewId).classList.remove('hidden');
+    const cont = document.getElementById(containerId);
+    cont.innerHTML = '';
+    Object.keys(db).forEach(sec => {
+        let html = `<div class="elemento-grupo">`;
+        if(sec !== "Listado") html += `<div class="elemento-grupo-titulo">${decodificarHTML(sec)}</div>`;
+        html += `<div class="notebook-wrapper" style="padding:15px; margin-bottom:0;">`;
+        db[sec].forEach(i => {
+            html += `<div class="curriculo-row"><strong style="width:100%; display:block; margin-bottom:5px; color:var(--accent-color); border-bottom:1px solid #ddd;">${decodificarHTML(i.t)}</strong>`;
+            i.d.forEach(dato => { if(dato) html += `<div style="margin-bottom:5px; font-size:0.9rem;">${decodificarHTML(dato)}</div>`; });
+            html += `</div>`;
+        });
+        cont.innerHTML += html + `</div></div>`;
+    });
+}
+
+// Función auxiliar para abrir/cerrar acordeones (Barreras, Bibliografía)
+function toggleAcordeon(id, btn) {
+    const el = document.getElementById(id);
+    if(el.classList.contains('show')) { el.classList.remove('show'); btn.classList.remove('activo'); btn.innerHTML = btn.innerHTML.replace('▲', '▼'); } 
+    else { el.classList.add('show'); btn.classList.add('activo'); btn.innerHTML = btn.innerHTML.replace('▼', '▲'); }
+}
+
+// =========================================
+// VISTAS ORIGINALES (Fichas, Resolución...)
+// =========================================
 function renderHome() {
     document.getElementById('view-home').classList.remove('hidden');
     const grid = document.getElementById('grid-fichas');
     grid.innerHTML = '';
-
     const supuestosArr = Object.values(AppState.supuestos).sort((a,b) => parseInt(a.id) - parseInt(b.id));
-
     supuestosArr.forEach(sup => {
-        const div = document.createElement('div');
-        div.className = 'card-ficha';
-        div.onclick = () => router('resolucion', sup.id);
-        
+        const div = document.createElement('div'); div.className = 'card-ficha'; div.onclick = () => router('resolucion', sup.id);
         let cardHtml = `<div class="ficha-numero">Supuesto ${sup.id}</div>`;
-
-        const campos = [
-            { l: "Área y Curso", k: ["Área y Curso", "Área"] },
-            { l: "Contexto", k: ["Contexto"] },
-            { l: "Barreras", k: ["Barreras (Diagnóstico)", "Barreras"] },
-            { l: "Tarea", k: ["Tarea Pedida (Tribunal)", "Tarea Pedidada", "Tarea Pedida"] },
-            { l: "Actividad Estrella", k: ["Actividad Estrella"] },
-            { l: "Normativa", k: ["Normativa Específica"] },
-            { l: "Autores", k: ["Autores Clave"] }
-        ];
-
-        campos.forEach(campo => {
-            let valor = "";
-            for (let i = 0; i < campo.k.length; i++) {
-                if (sup[campo.k[i]]) { valor = String(sup[campo.k[i]]); break; }
-            }
-            if (valor) {
-                valor = decodificarHTML(valor); 
-                cardHtml += `<div class="ficha-dato" style="margin-bottom:0.8rem;"><strong>${campo.l}:</strong><br><span style="font-size:0.9rem;color:#444;">${valor}</span></div>`;
-            }
-        });
-
-        div.innerHTML = cardHtml;
-        grid.appendChild(div);
+        const campos = [{ l: "Área y Curso", k: ["Área y Curso", "Área"] }, { l: "Contexto", k: ["Contexto"] }, { l: "Barreras", k: ["Barreras (Diagnóstico)", "Barreras"] }, { l: "Tarea", k: ["Tarea Pedida (Tribunal)", "Tarea Pedidada", "Tarea Pedida"] }, { l: "Actividad Estrella", k: ["Actividad Estrella"] }];
+        campos.forEach(c => { let v = ""; for(let i=0; i<c.k.length; i++) { if(sup[c.k[i]]) {v=String(sup[c.k[i]]); break;} } if(v) cardHtml += `<div class="ficha-dato"><strong>${c.l}:</strong><br><span style="font-size:0.9rem;color:#444;">${decodificarHTML(v)}</span></div>`; });
+        div.innerHTML = cardHtml; grid.appendChild(div);
     });
 }
 
 function renderIndice() {
     document.getElementById('view-indice').classList.remove('hidden');
-    const grid = document.getElementById('grid-indice');
-    grid.innerHTML = '';
+    const grid = document.getElementById('grid-indice'); grid.innerHTML = '';
     AppState.indiceMenu.forEach((item, index) => {
-        const btn = document.createElement('button');
-        btn.className = 'btn-indice';
-        btn.textContent = item.titulo;
-        btn.onclick = () => router('detalle', index);
-        grid.appendChild(btn);
-    });
-}
-
-// Menú intermedio Elementos
-function renderElementos() {
-    document.getElementById('view-elementos').classList.remove('hidden');
-}
-
-// VISTA: CONTEXTO
-function renderContexto() {
-    document.getElementById('view-contexto').classList.remove('hidden');
-    const cont = document.getElementById('contenedor-contexto');
-    cont.innerHTML = '';
-
-    Object.keys(AppState.contextoData).forEach(seccion => {
-        const items = AppState.contextoData[seccion];
-        
-        let html = `
-        <div class="elemento-grupo">
-            <div class="elemento-grupo-titulo">${decodificarHTML(seccion)}</div>
-        `;
-        
-        items.forEach(i => {
-            // Lógica inteligente para cambiar los títulos de la tarjeta según la sección
-            let tituloE = "Ventajas Pedagógicas";
-            let tituloF = "Limitaciones / Barreras";
-            
-            if (seccion.toLowerCase().includes("psicoevolutivas") || seccion.toLowerCase().includes("desarrollo")) {
-                tituloE = "Estadio Cognitivo";
-                tituloF = "Implicación Metodológica";
-            }
-
-            html += `
-            <div class="elemento-card">
-                <h4>${decodificarHTML(i.titulo)}</h4>
-                <div class="elemento-grid">
-                    <div class="elemento-col col-pros">
-                        <strong>${tituloE}</strong>
-                        ${decodificarHTML(i.colE)}
-                    </div>
-                    <div class="elemento-col col-cons">
-                        <strong>${tituloF}</strong>
-                        ${decodificarHTML(i.colF)}
-                    </div>
-                </div>
-            </div>`;
-        });
-        
-        html += `</div>`;
-        cont.innerHTML += html;
+        const btn = document.createElement('button'); btn.className = 'btn-indice'; btn.textContent = item.titulo; btn.onclick = () => router('detalle', index); grid.appendChild(btn);
     });
 }
 
 function renderDesarrollo() {
-    const view = document.getElementById('view-desarrollo');
-    view.classList.remove('hidden');
-    const container = document.getElementById('lista-desarrollo');
-    container.innerHTML = '';
-
+    const view = document.getElementById('view-desarrollo'); view.classList.remove('hidden');
+    const container = document.getElementById('lista-desarrollo'); container.innerHTML = '';
     Object.keys(AppState.desarrolloData).forEach((apartado) => {
         const data = AppState.desarrolloData[apartado];
-        const section = document.createElement('div');
-        section.className = 'desarrollo-section';
-        
-        const titleDiv = document.createElement('div');
-        titleDiv.className = 'desarrollo-titulo';
-        titleDiv.innerHTML = decodificarHTML(apartado); 
-        section.appendChild(titleDiv);
-        
+        const section = document.createElement('div'); section.className = 'desarrollo-section';
+        const titleDiv = document.createElement('div'); titleDiv.className = 'desarrollo-titulo'; titleDiv.innerHTML = decodificarHTML(apartado); section.appendChild(titleDiv);
         if (data.items.length > 0) {
-            const gridDiv = document.createElement('div');
-            gridDiv.className = 'desarrollo-grid';
-            
-            const visorDiv = document.createElement('div');
-            visorDiv.className = 'desarrollo-visor hidden';
-            
-            const btnClose = document.createElement('button');
-            btnClose.className = 'btn-cerrar-visor';
-            btnClose.innerHTML = '&times;';
-            btnClose.onclick = () => { visorDiv.classList.add('hidden'); gridDiv.classList.remove('hidden'); };
-            
-            const visorContent = document.createElement('div');
-            visorContent.className = 'visor-content';
-            
-            visorDiv.appendChild(btnClose);
-            visorDiv.appendChild(visorContent);
-
+            const gridDiv = document.createElement('div'); gridDiv.className = 'desarrollo-grid';
+            const visorDiv = document.createElement('div'); visorDiv.className = 'desarrollo-visor hidden';
+            const btnClose = document.createElement('button'); btnClose.className = 'btn-cerrar-visor'; btnClose.innerHTML = '&times;'; btnClose.onclick = () => { visorDiv.classList.add('hidden'); gridDiv.classList.remove('hidden'); };
+            const visorContent = document.createElement('div'); visorContent.className = 'visor-content';
+            visorDiv.appendChild(btnClose); visorDiv.appendChild(visorContent);
             data.items.sort((a,b) => parseInt(a.num) - parseInt(b.num)).forEach((sup) => {
-                const btn = document.createElement('button');
-                btn.className = 'btn-grid';
-                btn.textContent = sup.num || 'Info';
-                btn.onclick = () => {
-                    gridDiv.classList.add('hidden');
-                    visorDiv.classList.remove('hidden');
-                    visorContent.innerHTML = `<strong style="color:var(--primary-color); display:block; margin-bottom:10px; border-bottom:1px solid #ddd;">Supuesto ${sup.num}</strong>` + decodificarHTML(sup.html);
-                };
+                const btn = document.createElement('button'); btn.className = 'btn-grid'; btn.textContent = sup.num || 'Info';
+                btn.onclick = () => { gridDiv.classList.add('hidden'); visorDiv.classList.remove('hidden'); visorContent.innerHTML = `<strong style="color:var(--primary-color); display:block; margin-bottom:10px; border-bottom:1px solid #ddd;">Supuesto ${sup.num}</strong>` + decodificarHTML(sup.html); };
                 gridDiv.appendChild(btn);
             });
-            section.appendChild(gridDiv);
-            section.appendChild(visorDiv);
+            section.appendChild(gridDiv); section.appendChild(visorDiv);
         }
         container.appendChild(section);
     });
 }
 
 function renderResolucion(supuestoId) {
-    document.getElementById('view-resolucion').classList.remove('hidden');
-    const sup = AppState.supuestos[supuestoId];
+    document.getElementById('view-resolucion').classList.remove('hidden'); const sup = AppState.supuestos[supuestoId];
     document.getElementById('resolucion-header').innerHTML = `<h2>Resolución Supuesto ${supuestoId}</h2><p class="desc-seccion">${decodificarHTML(sup['Contexto'] || '')}</p>`;
-    const contentDiv = document.getElementById('resolucion-content');
-    contentDiv.innerHTML = '';
-    let currentMainPoint = ""; 
-
+    const contentDiv = document.getElementById('resolucion-content'); contentDiv.innerHTML = ''; let currentMainPoint = ""; 
     AppState.indiceMenu.forEach(itemIndice => {
         const normTituloIndice = normalizarTexto(itemIndice.titulo);
         const bloques = AppState.contenidos.filter(row => {
-            const target = row[1] !== '' ? row[1] : row[0];
-            const normTarget = normalizarTexto(target);
+            const target = row[1] !== '' ? row[1] : row[0]; const normTarget = normalizarTexto(target);
             if (normTarget !== '' && (normTarget.includes(normTituloIndice) || normTituloIndice.includes(normTarget))) {
                 const supStr = row[2] ? String(row[2]).trim().toLowerCase() : '';
                 if (supStr === "" || supStr.includes("todo") || supStr.split(/[\s,]+/).includes(supuestoId.toString())) return true;
-            }
-            return false;
+            } return false;
         });
-
         if (bloques.length > 0) {
             const mainPoint = bloques[0][0];
-            if (mainPoint && mainPoint !== currentMainPoint) {
-                contentDiv.innerHTML += `<h2 class="main-point-title" style="color:var(--primary-color); border-bottom:3px solid var(--accent-color); padding-bottom:0.5rem; margin-top:3rem;">${decodificarHTML(mainPoint)}</h2>`;
-                currentMainPoint = mainPoint; 
-            }
+            if (mainPoint && mainPoint !== currentMainPoint) { contentDiv.innerHTML += `<h2 class="main-point-title" style="color:var(--primary-color); border-bottom:3px solid var(--accent-color); padding-bottom:0.5rem; margin-top:3rem;">${decodificarHTML(mainPoint)}</h2>`; currentMainPoint = mainPoint; }
             let html = `<div class="notebook-wrapper"><h3 class="sub-point-title" style="color:var(--primary-color); margin-top:0;">${itemIndice.titulo}</h3><div class="notebook-container">`;
-            bloques.forEach(row => {
-                html += `<div class="notebook-row"><div class="notebook-terms">${decodificarHTML(row[3])}</div><div class="notebook-content">${decodificarHTML(row[4] || row[3])}</div></div>`;
-            });
+            bloques.forEach(row => { html += `<div class="notebook-row"><div class="notebook-terms">${decodificarHTML(row[3])}</div><div class="notebook-content">${decodificarHTML(row[4] || row[3])}</div></div>`; });
             contentDiv.innerHTML += html + `</div></div>`;
         }
     });
 }
 
 function renderDetalleApartado(idx) {
-    document.getElementById('view-detalle-apartado').classList.remove('hidden');
-    AppState.currentApartadoIndex = idx;
-    const item = AppState.indiceMenu[idx];
-    document.getElementById('detalle-header').innerHTML = `<h2>${item.titulo}</h2><p>${item.desc}</p>`;
-    const contentDiv = document.getElementById('detalle-content');
-    contentDiv.innerHTML = '';
-    
-    const bloques = AppState.contenidos.filter(row => {
-        const target = normalizarTexto(row[1] !== '' ? row[1] : row[0]);
-        return target !== '' && (target.includes(normalizarTexto(item.titulo)) || normalizarTexto(item.titulo).includes(target));
-    });
-
+    document.getElementById('view-detalle-apartado').classList.remove('hidden'); AppState.currentApartadoIndex = idx; const item = AppState.indiceMenu[idx];
+    document.getElementById('detalle-header').innerHTML = `<h2>${item.titulo}</h2><p>${item.desc}</p>`; const contentDiv = document.getElementById('detalle-content'); contentDiv.innerHTML = '';
+    const bloques = AppState.contenidos.filter(row => { const target = normalizarTexto(row[1] !== '' ? row[1] : row[0]); return target !== '' && (target.includes(normalizarTexto(item.titulo)) || normalizarTexto(item.titulo).includes(target)); });
     if (bloques.length > 0) {
         let html = `<div class="notebook-wrapper"><div class="notebook-container">`;
-        bloques.forEach(row => {
-            html += `<div class="notebook-row"><div class="notebook-terms"><span class="badge" style="background:var(--hover-color); padding: 2px 6px; border-radius: 4px; font-size:0.8rem; margin-bottom:5px; display:inline-block;">Supuestos: ${row[2] || 'Todos'}</span><br>${decodificarHTML(row[3])}</div><div class="notebook-content">${decodificarHTML(row[4] || row[3])}</div></div>`;
-        });
+        bloques.forEach(row => { html += `<div class="notebook-row"><div class="notebook-terms"><span class="badge" style="background:var(--hover-color); padding: 2px 6px; border-radius: 4px; font-size:0.8rem; margin-bottom:5px; display:inline-block;">Supuestos: ${row[2] || 'Todos'}</span><br>${decodificarHTML(row[3])}</div><div class="notebook-content">${decodificarHTML(row[4] || row[3])}</div></div>`; });
         contentDiv.innerHTML = html + `</div></div>`;
     }
 }
 
-function nextApartado() {
-    let next = AppState.currentApartadoIndex + 1;
-    if (next >= AppState.indiceMenu.length) next = 0; 
-    router('detalle', next);
-}
-
+function nextApartado() { let next = AppState.currentApartadoIndex + 1; if (next >= AppState.indiceMenu.length) next = 0; router('detalle', next); }
 window.onload = initApp;
