@@ -56,34 +56,77 @@
             </div>
         </section>
 
-        <!-- NUEVA VISTA: MENÚ DE ELEMENTOS -->
+        <!-- VISTA: MENÚ DE ELEMENTOS -->
         <section id="view-elementos" class="hidden">
             <div class="header-seccion">
                 <h2>Elementos del Desarrollo</h2>
                 <p class="desc-seccion">Menú principal de bloques estructurales y recursos.</p>
             </div>
             <div class="grid-indice">
-                <!-- Botón de la nueva página de Contexto -->
                 <button class="btn-indice" onclick="router('contexto')">Contexto</button>
-                <!-- Se podrán añadir más elementos aquí en el futuro -->
+                <button class="btn-indice" onclick="router('barreras')">Barreras y Concreción</button>
+                <button class="btn-indice" onclick="router('curriculo')">Elementos Curriculares</button>
+                <button class="btn-indice" onclick="router('metodologia')">Metodologías</button>
+                <button class="btn-indice" onclick="router('actividades')">Actividades</button>
+                <button class="btn-indice" onclick="router('medidas')">Medidas Ordinarias</button>
+                <button class="btn-indice" onclick="router('instrumentos')">Instrumentos de Ev.</button>
+                <button class="btn-indice" onclick="router('bibliografia')">Bibliografía y Normativa</button>
             </div>
             <div class="control-buttons" style="justify-content: center;">
                 <button class="btn-secondary" onclick="router('home')">Volver a Supuestos</button>
             </div>
         </section>
 
-        <!-- NUEVA VISTA: CONTEXTO -->
+        <!-- SUBVISTAS DE ELEMENTOS -->
         <section id="view-contexto" class="hidden">
-            <div class="header-seccion">
-                <h2>Contexto</h2>
-                <p class="desc-seccion">Análisis de entornos, centros y características psicoevolutivas.</p>
-            </div>
+            <div class="header-seccion"><h2>Contexto</h2></div>
             <div id="contenedor-contexto"></div>
-            <div class="control-buttons" style="justify-content: center;">
-                <button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button>
-            </div>
+            <div class="control-buttons" style="justify-content: center;"><button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button></div>
         </section>
 
+        <section id="view-barreras" class="hidden">
+            <div class="header-seccion"><h2>Barreras y Concreción</h2><p class="desc-seccion">Haz clic en la barrera para desplegar sus elementos.</p></div>
+            <div id="contenedor-barreras"></div>
+            <div class="control-buttons" style="justify-content: center;"><button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button></div>
+        </section>
+
+        <section id="view-curriculo" class="hidden">
+            <div class="header-seccion"><h2>Elementos Curriculares</h2></div>
+            <div id="contenedor-curriculo"></div>
+            <div class="control-buttons" style="justify-content: center;"><button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button></div>
+        </section>
+
+        <section id="view-metodologia" class="hidden">
+            <div class="header-seccion"><h2>Metodologías</h2></div>
+            <div id="contenedor-metodologia"></div>
+            <div class="control-buttons" style="justify-content: center;"><button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button></div>
+        </section>
+
+        <section id="view-actividades" class="hidden">
+            <div class="header-seccion"><h2>Actividades</h2></div>
+            <div id="contenedor-actividades"></div>
+            <div class="control-buttons" style="justify-content: center;"><button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button></div>
+        </section>
+
+        <section id="view-medidas" class="hidden">
+            <div class="header-seccion"><h2>Medidas Ordinarias</h2></div>
+            <div id="contenedor-medidas"></div>
+            <div class="control-buttons" style="justify-content: center;"><button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button></div>
+        </section>
+
+        <section id="view-instrumentos" class="hidden">
+            <div class="header-seccion"><h2>Instrumentos de Evaluación</h2></div>
+            <div id="contenedor-instrumentos"></div>
+            <div class="control-buttons" style="justify-content: center;"><button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button></div>
+        </section>
+
+        <section id="view-bibliografia" class="hidden">
+            <div class="header-seccion"><h2>Bibliografía y Normativa</h2><p class="desc-seccion">Haz clic en cada ítem para ver los detalles.</p></div>
+            <div id="contenedor-bibliografia"></div>
+            <div class="control-buttons" style="justify-content: center;"><button class="btn-secondary" onclick="router('elementos')">Volver a Elementos</button></div>
+        </section>
+
+        <!-- VISTAS ORIGINALES RESOLUCIÓN -->
         <section id="view-resolucion" class="hidden">
             <div id="resolucion-header" class="header-seccion"></div>
             <div id="resolucion-content"></div>
