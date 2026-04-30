@@ -7,7 +7,7 @@ const ENDPOINTS = {
     fichas: `${BASE_URL}?gid=779876412&output=csv`,
     indice: `${BASE_URL}?gid=1965451569&output=csv`,
     desarrollo: `${BASE_URL}?gid=1989575496&output=csv`, // Hoja 8
-    matriz: `${BASE_URL}?gid=1657297745&output=csv`,     // Hoja Matriz
+    elementos: `${BASE_URL}?gid=1657297745&output=csv`,  // Hoja Elementos (Contexto)
     p1: `${BASE_URL}?gid=0&output=csv`,
     p2: `${BASE_URL}?gid=195232515&output=csv`,
     p3: `${BASE_URL}?gid=1223707292&output=csv`,
@@ -19,7 +19,7 @@ const AppState = {
     supuestos: {}, 
     indiceMenu: [], 
     desarrolloData: {}, 
-    matrizData: {}, 
+    contextoData: {}, // Guardará los datos procesados del Contexto
     contenidos: [], 
     currentApartadoIndex: 0 
 };
@@ -76,16 +76,16 @@ async function fetchSafe(url) {
 
 async function initApp() {
     try {
-        const [csvFichas, csvIndice, csvDes, csvMatriz, csvP1, csvP2, csvP3, csvP4, csvP5] = await Promise.all([
+        const [csvFichas, csvIndice, csvDes, csvElementos, csvP1, csvP2, csvP3, csvP4, csvP5] = await Promise.all([
             fetchSafe(ENDPOINTS.fichas), fetchSafe(ENDPOINTS.indice), fetchSafe(ENDPOINTS.desarrollo),
-            fetchSafe(ENDPOINTS.matriz), fetchSafe(ENDPOINTS.p1), fetchSafe(ENDPOINTS.p2), 
+            fetchSafe(ENDPOINTS.elementos), fetchSafe(ENDPOINTS.p1), fetchSafe(ENDPOINTS.p2), 
             fetchSafe(ENDPOINTS.p3), fetchSafe(ENDPOINTS.p4), fetchSafe(ENDPOINTS.p5)
         ]);
 
         procesarFichas(parseCSV(csvFichas));
         procesarIndice(parseCSV(csvIndice));
         procesarDesarrollo(parseCSV(csvDes));
-        procesarMatriz(parseCSV(csvMatriz));
+        procesarContexto(parseCSV(csvElementos));
         
         const allRows = [...parseCSV(csvP1), ...parseCSV(csvP2), ...parseCSV(csvP3), ...parseCSV(csvP4), ...parseCSV(csvP5)];
         const uniqueContenidos = [];
@@ -139,20 +139,23 @@ function procesarDesarrollo(filas) {
     });
 }
 
-function procesarMatriz(filas) {
+// PROCESAMIENTO PÁGINA CONTEXTO
+function procesarContexto(filas) {
+    AppState.contextoData = {};
     filas.forEach((fila, index) => {
         if (index === 0) return; // Saltamos la cabecera
-        if (fila.length < 1 || !fila[0].trim()) return; // Ignorar si no hay grupo
+        // Comprobamos que exista la sección en la Columna C (índice 2)
+        if (fila.length < 3 || !fila[2] || !fila[2].trim()) return; 
         
-        const grupo = fila[0].trim();
-        const titulo = fila[1] ? fila[1].trim() : '';
-        const pros = fila[2] ? fila[2].trim() : '';
-        const cons = fila[3] ? fila[3].trim() : '';
+        const seccion = fila[2].trim(); // Columna C (Sección)
+        const titulo = fila[3] ? fila[3].trim() : ''; // Columna D (Elemento)
+        const colE = fila[4] ? fila[4].trim() : '';   // Columna E (Ventaja / Estadio)
+        const colF = fila[5] ? fila[5].trim() : '';   // Columna F (Limitación / Implicación)
 
-        if (!AppState.matrizData[grupo]) {
-            AppState.matrizData[grupo] = [];
+        if (!AppState.contextoData[seccion]) {
+            AppState.contextoData[seccion] = [];
         }
-        AppState.matrizData[grupo].push({ titulo, pros, cons });
+        AppState.contextoData[seccion].push({ titulo, colE, colF });
     });
 }
 
@@ -160,8 +163,7 @@ function procesarMatriz(filas) {
 // NAVEGACIÓN Y VISTAS
 // =========================================
 function router(view, param = null) {
-    // Control de seguridad añadido: si el ID no existe, no falla, simplemente avanza.
-    ['view-home', 'view-indice', 'view-desarrollo', 'view-matriz', 'view-resolucion', 'view-detalle-apartado'].forEach(id => {
+    ['view-home', 'view-indice', 'view-desarrollo', 'view-elementos', 'view-contexto', 'view-resolucion', 'view-detalle-apartado'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -169,7 +171,8 @@ function router(view, param = null) {
     if (view === 'home') renderHome();
     else if (view === 'indice') renderIndice();
     else if (view === 'desarrollo') renderDesarrollo();
-    else if (view === 'matriz') renderMatriz();
+    else if (view === 'elementos') renderElementos();
+    else if (view === 'contexto') renderContexto();
     else if (view === 'resolucion') renderResolucion(param);
     else if (view === 'detalle') renderDetalleApartado(param);
     
@@ -229,31 +232,46 @@ function renderIndice() {
     });
 }
 
-function renderMatriz() {
-    document.getElementById('view-matriz').classList.remove('hidden');
-    const cont = document.getElementById('contenedor-matriz');
+// Menú intermedio Elementos
+function renderElementos() {
+    document.getElementById('view-elementos').classList.remove('hidden');
+}
+
+// VISTA: CONTEXTO
+function renderContexto() {
+    document.getElementById('view-contexto').classList.remove('hidden');
+    const cont = document.getElementById('contenedor-contexto');
     cont.innerHTML = '';
 
-    Object.keys(AppState.matrizData).forEach(grupo => {
-        const items = AppState.matrizData[grupo];
+    Object.keys(AppState.contextoData).forEach(seccion => {
+        const items = AppState.contextoData[seccion];
         
         let html = `
-        <div class="matriz-grupo">
-            <div class="matriz-grupo-titulo">${decodificarHTML(grupo)}</div>
+        <div class="elemento-grupo">
+            <div class="elemento-grupo-titulo">${decodificarHTML(seccion)}</div>
         `;
         
         items.forEach(i => {
+            // Lógica inteligente para cambiar los títulos de la tarjeta según la sección
+            let tituloE = "Ventajas Pedagógicas";
+            let tituloF = "Limitaciones / Barreras";
+            
+            if (seccion.toLowerCase().includes("psicoevolutivas") || seccion.toLowerCase().includes("desarrollo")) {
+                tituloE = "Estadio Cognitivo";
+                tituloF = "Implicación Metodológica";
+            }
+
             html += `
-            <div class="matriz-card">
+            <div class="elemento-card">
                 <h4>${decodificarHTML(i.titulo)}</h4>
-                <div class="matriz-grid">
-                    <div class="matriz-col col-pros">
-                        <strong>Ventajas Pedagógicas</strong>
-                        ${decodificarHTML(i.pros)}
+                <div class="elemento-grid">
+                    <div class="elemento-col col-pros">
+                        <strong>${tituloE}</strong>
+                        ${decodificarHTML(i.colE)}
                     </div>
-                    <div class="matriz-col col-cons">
-                        <strong>Limitaciones / Barreras</strong>
-                        ${decodificarHTML(i.cons)}
+                    <div class="elemento-col col-cons">
+                        <strong>${tituloF}</strong>
+                        ${decodificarHTML(i.colF)}
                     </div>
                 </div>
             </div>`;
